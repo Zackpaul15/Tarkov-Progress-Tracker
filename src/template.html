@@ -1,0 +1,530 @@
+<title>Hideout Rebuild</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: a workshop clipboard. Sticky summary strip, four work views, dense rows with steppers. */
+:root{
+  --bg:#15181a; --panel:#1d2124; --panel2:#252a2e; --line:#343b40; --fg:#e6e4dc; --muted:#98a09d;
+  --accent:#e2a236; --accent-ink:#1a1405; --ok:#74c07a; --warn:#e58556; --fir:#5fb9cf;
+  --display:"Barlow Condensed","Arial Narrow",system-ui,sans-serif;
+  --body:"Barlow",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"JetBrains Mono",ui-monospace,Consolas,monospace;
+  color-scheme:dark;
+}
+@media (prefers-color-scheme: light){ :root:not([data-theme="dark"]){
+  --bg:#eceeec; --panel:#ffffff; --panel2:#f3f5f3; --line:#cdd3d0; --fg:#1a1f21; --muted:#5a6462;
+  --accent:#b87400; --accent-ink:#ffffff; --ok:#2c7a33; --warn:#b3481b; --fir:#0e6c84; color-scheme:light } }
+:root[data-theme="light"]{
+  --bg:#eceeec; --panel:#ffffff; --panel2:#f3f5f3; --line:#cdd3d0; --fg:#1a1f21; --muted:#5a6462;
+  --accent:#b87400; --accent-ink:#ffffff; --ok:#2c7a33; --warn:#b3481b; --fir:#0e6c84; color-scheme:light }
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--body);font-size:15px;line-height:1.5}
+.wrap{max-width:1080px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px 56px;display:flex;flex-direction:column;gap:20px}
+h1,h2,h3{font-family:var(--display);text-wrap:balance;margin:0;letter-spacing:.01em}
+h1{font-size:2.3rem;font-weight:700;text-transform:uppercase;line-height:1}
+h2{font-size:1.5rem;font-weight:600;text-transform:uppercase}
+h3{font-size:1.2rem;font-weight:600}
+p{margin:0;max-width:68ch}
+a{color:var(--accent)}
+.muted{color:var(--muted)}
+.num{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.top{display:flex;flex-wrap:wrap;gap:12px 24px;align-items:flex-end;justify-content:space-between}
+.top p{color:var(--muted)}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:1px;background:var(--line);border:1px solid var(--line)}
+.stat{background:var(--panel);padding:10px 14px;display:flex;flex-direction:column;gap:2px;min-width:0}
+.stat b{font-family:var(--mono);font-size:1.25rem;font-weight:600}
+.stat span{font-size:.75rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
+.bar{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);padding-block:8px;display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center;justify-content:space-between;border-bottom:1px solid var(--line)}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--bg)}
+.tabs,.seg{display:flex;flex-wrap:wrap;gap:4px}
+button{font:inherit;color:inherit;cursor:pointer}
+.tab,.seg button,.chip{background:transparent;border:1px solid var(--line);padding:6px 12px;font-family:var(--display);font-size:1.05rem;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:var(--muted)}
+.tab[aria-selected="true"],.seg button[aria-pressed="true"],.chip[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.seg-label{font-size:.75rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-right:6px}
+.segwrap{display:flex;align-items:center;flex-wrap:wrap;gap:4px}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+section.view{display:flex;flex-direction:column;gap:18px}
+.group{display:flex;flex-direction:column;gap:10px}
+.group>header{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px 12px}
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:12px}
+.card{background:var(--panel);border:1px solid var(--line);display:flex;flex-direction:column;min-width:0}
+.card>header{display:flex;justify-content:space-between;align-items:baseline;gap:8px;padding:10px 14px;border-bottom:1px solid var(--line)}
+.card.go>header{border-bottom-color:var(--ok)}
+.lvl{font-family:var(--mono);font-size:.8rem;color:var(--accent);margin-left:6px}
+.time{font-family:var(--mono);font-size:.78rem;color:var(--muted);white-space:nowrap}
+.reqs{list-style:none;margin:0;padding:6px 14px;display:flex;flex-direction:column}
+.reqs li{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:5px 0;border-bottom:1px dashed var(--line);min-width:0}
+.reqs li:last-child{border-bottom:0}
+.reqs .nm{min-width:0;overflow-wrap:anywhere}
+.reqs a{color:inherit;text-decoration-color:var(--line)}
+.tag{font-family:var(--mono);font-size:.68rem;padding:1px 5px;border:1px solid currentColor;margin-left:6px;white-space:nowrap}
+.tag.fir{color:var(--fir)} .tag.x{color:var(--accent)} .tag.gate{color:var(--warn)}
+.step{display:flex;align-items:center;gap:6px;flex:none}
+.step button{width:26px;height:26px;border:1px solid var(--line);background:var(--panel2);line-height:1;font-family:var(--mono)}
+.step .num{min-width:5.2ch;text-align:center;font-size:.85rem}
+.done .num,.okc{color:var(--ok)}
+.card>footer{margin-top:auto;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 14px;border-top:1px solid var(--line);background:var(--panel2)}
+.btn{background:var(--accent);color:var(--accent-ink);border:0;padding:7px 14px;font-family:var(--display);font-weight:700;font-size:1.05rem;text-transform:uppercase;letter-spacing:.04em}
+.btn.ghost{background:transparent;color:var(--muted);border:1px solid var(--line);font-weight:600}
+.rows{background:var(--panel);border:1px solid var(--line)}
+.row{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:6px 14px;padding:8px 14px;border-bottom:1px solid var(--line)}
+.row:last-child{border-bottom:0}
+.row .why{color:var(--muted);font-size:.88rem}
+.scroll{overflow-x:auto;background:var(--panel);border:1px solid var(--line)}
+table{border-collapse:collapse;width:100%;min-width:680px}
+th,td{padding:7px 12px;text-align:left;border-bottom:1px solid var(--line);vertical-align:middle}
+th{font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:600;background:var(--panel2)}
+td.r,th.r{text-align:right}td.num{white-space:nowrap}
+tr:last-child td{border-bottom:0}
+td .uses{color:var(--muted);font-size:.82rem}
+.filters{display:flex;flex-wrap:wrap;gap:4px}
+.chip{font-size:.95rem;padding:4px 10px}
+.trader .lls{display:flex;flex-wrap:wrap;gap:6px 16px;padding:8px 14px;border-bottom:1px solid var(--line);font-size:.86rem;color:var(--muted)}
+.trader .lls b{color:var(--fg);font-family:var(--mono);font-weight:600}
+.trader .lls .hit b{color:var(--ok)}
+.tasks{list-style:none;margin:0;padding:4px 14px 10px}
+.tasks li{padding:6px 0;border-bottom:1px dashed var(--line)}
+.tasks li:last-child{border-bottom:0}
+.tasks label{display:flex;gap:10px;align-items:flex-start;cursor:pointer}
+.tasks input{margin-top:4px;accent-color:var(--accent);flex:none}
+.tasks .t{flex:1;min-width:0}
+.tasks .sub{display:block;color:var(--muted);font-size:.82rem}
+.tasks .rep{font-family:var(--mono);font-size:.82rem;color:var(--accent);flex:none}
+.tasks input:checked ~ .t{color:var(--muted);text-decoration:line-through}
+.note{background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--accent);padding:12px 14px;display:flex;flex-direction:column;gap:6px}
+.cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px}
+.panel{background:var(--panel);border:1px solid var(--line);padding:14px;display:flex;flex-direction:column;gap:8px;min-width:0}
+.panel ul{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:4px}
+.sync{display:flex;flex-wrap:wrap;gap:10px 16px;align-items:flex-end}
+.sync label{display:flex;flex-direction:column;gap:3px;font-size:.75rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
+.sync input,.sync select{font:inherit;font-size:.95rem;text-transform:none;letter-spacing:0;color:var(--fg);background:var(--panel2);border:1px solid var(--line);padding:6px 8px}
+.tipsrc{color:var(--muted);font-size:.8rem}
+.grid83{display:grid;grid-template-columns:repeat(8,1fr);gap:2px;max-width:360px}
+.grid83 i{aspect-ratio:1;background:var(--panel2);border:1px solid var(--line);font:normal .6rem var(--mono);display:flex;align-items:center;justify-content:center;color:var(--muted);overflow:hidden}
+.grid83 i.f{background:color-mix(in srgb,var(--accent) 22%,var(--panel));color:var(--fg);border-color:var(--accent)}
+.save{font-family:var(--mono);font-size:.75rem;color:var(--muted)}
+.src{color:var(--muted);font-size:.82rem}
+@media (max-width:520px){ h1{font-size:1.9rem} .cards{grid-template-columns:1fr} }
+</style>
+
+<div class="wrap">
+  <div class="top">
+    <div>
+      <h1>Hideout Rebuild</h1>
+      <p>Post-prestige tracker for PvE. Requirements and prices from tarkov.dev's PvE data, last updated <span id="pulled">recently</span>.</p>
+    </div>
+    <span class="save" id="save" role="status">Loading saved progress…</span>
+  </div>
+
+  <div class="stats" id="stats"></div>
+
+  <div class="bar">
+    <div class="tabs" role="tablist" id="tabs">
+      <button class="tab" role="tab" data-tab="build">Build order</button>
+      <button class="tab" role="tab" data-tab="items">Shopping list</button>
+      <button class="tab" role="tab" data-tab="traders">Traders</button>
+      <button class="tab" role="tab" data-tab="prestige">Prestige prep</button>
+      <button class="tab" role="tab" data-tab="tips">Player tips</button>
+    </div>
+    <div class="segwrap"><span class="seg-label">Plan through</span>
+      <div class="seg" id="target">
+        <button data-t="1">Phase 1</button><button data-t="2">Phase 2</button><button data-t="3">Phase 3</button><button data-t="4">Everything</button>
+      </div>
+    </div>
+  </div>
+
+  <section class="view" id="v-build"></section>
+  <section class="view" id="v-items" hidden></section>
+  <section class="view" id="v-traders" hidden></section>
+  <section class="view" id="v-prestige" hidden></section>
+  <section class="view" id="v-tips" hidden></section>
+
+  <p class="src">Sources: hideout, trader and prestige data from <a href="https://tarkov.dev" target="_blank" rel="noopener">tarkov.dev</a>; prestige rules checked against the <a href="https://escapefromtarkov.fandom.com/wiki/Prestige" target="_blank" rel="noopener">Escape from Tarkov Wiki</a>. Flea prices are 24-hour averages from the day of the last update and will drift.</p>
+</div>
+
+<script>
+const D = /*DATA*/;
+const CASH = {'5449016a4bdc2d6f028b456f':'₽','5696686a4bdc2da3298b456a':'$','569668774bdc2da2298b4568':'€'};
+const LATE = ['library','booze-generator','scav-case','bitcoin-farm','air-filtering-unit','solar-power'];
+function phase(k,l){
+  if(LATE.includes(k)) return 4;
+  if(k==='defective-wall') return l<=3?1:2;
+  if(k==='gym'||k==='cultist-circle') return 2;
+  if(k==='hall-of-fame'||k==='gear-rack') return l===1?2:4;
+  if(k==='weapon-rack') return l===1?3:4;
+  if(k==='shooting-range') return l===1?1:(l===2?3:4);
+  return Math.min(l,4);
+}
+// Recommended order. Prestige-gate stations (Intelligence Center 1, Nutrition Unit 2, Rest Space 2) come early.
+const PRI = ['vents:1','security:1','generator:1','medstation:1','water-collector:1','defective-wall:1','workbench:1','rest-space:1','nutrition-unit:1','intelligence-center:1','heating:1','illumination:1','lavatory:1','defective-wall:2','shooting-range:1','defective-wall:3',
+ 'rest-space:2','illumination:2','lavatory:2','nutrition-unit:2','medstation:2','workbench:2','generator:2','vents:2','security:2','heating:2','water-collector:2','intelligence-center:2','defective-wall:4','defective-wall:5','defective-wall:6','cultist-circle:1','gym:1','hall-of-fame:1','gear-rack:1',
+ 'illumination:3','workbench:3','rest-space:3','lavatory:3','medstation:3','nutrition-unit:3','vents:3','heating:3','security:3','generator:3','water-collector:3','weapon-rack:1','shooting-range:2','intelligence-center:3'];
+const PHASE_DESC = {1:'Phase 1 is every level 1 station plus the first three Defective Wall stages.',2:'Phase 2 adds every level 2 upgrade, the rest of the Defective Wall, Gym, Cultist Circle, Hall of Fame 1 and Gear Rack 1.',3:'Phase 3 adds every level 3 upgrade, Weapon Rack 1 and Shooting Range 2.',4:'Everything adds the late-game stations: Bitcoin Farm, Scav Case, Solar Power, Library, Air Filtering Unit, Booze Generator and the top rack and Hall of Fame levels.'};
+const XFER = [['59e3606886f77417674759a5',6,'Medstation 2'],['5b4335ba86f7744d2837a264',2,'Medstation 2'],['590c311186f77424d1667482',4,'Nutrition Unit 2'],['59faf98186f774067b6be103',2,'Nutrition Unit 2'],['60391b0fb847c71012789415',2,'Security 2'],['5af04b6486f774195a3ebb49',1,'Security 2'],['5e2aedd986f7746d404f3aa4',4,'Rest Space 3'],['5af0534a86f7743b6f354284',1,'Medstation 3']];
+
+const ST = Object.fromEntries(D.stations.map(s=>[s.k,s]));
+const LEVELS = [];
+D.stations.forEach(s=>s.lv.forEach(l=>LEVELS.push({k:s.k,n:s.n,l:l.l,d:l,id:s.k+':'+l.l,ph:phase(s.k,l.l)})));
+LEVELS.forEach(x=>{const i=PRI.indexOf(x.id); x.pri = i>=0?i:1000+x.ph*100+x.l;});
+LEVELS.sort((a,b)=>a.pri-b.pri);
+
+let S = {built:{stash:4},have:{},tasks:{},xfer:{},target:2,ts:0,sync:{since:'',mode:'pve'}};
+let syncMsg='', clearArm=false;
+let tab = 'build', filt = 'all';
+const $ = id=>document.getElementById(id);
+const esc = s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const fmt = n=>Math.round(n).toLocaleString('en-US');
+const dur = t=>{ if(!t) return 'instant'; const h=Math.round(t/3600); return h<24? h+'h build' : Math.floor(h/24)+'d '+(h%24?h%24+'h ':'')+'build'; };
+const built = k=>S.built[k]||0;
+const have = id=>S.have[id]||0;
+const inPlan = x=>x.ph<=S.target;
+const isBuilt = x=>built(x.k)>=x.l;
+const blockers = x=>{ const b=[]; if(built(x.k)<x.l-1) b.push(x.n+' '+(x.l-1)); x.d.st.forEach(([k,l])=>{ if(built(k)<l) b.push(ST[k].n+' '+l); }); return b; };
+const missing = x=>x.d.it.filter(([id,c])=>!CASH[id] && have(id)<c).length;
+
+function itemRow([id,c,fir]){
+  const it=D.items[id];
+  if(CASH[id]) return `<li><span class="nm">${esc(it.n)}</span><span class="num">${CASH[id]}${fmt(c)}</span></li>`;
+  const ok=have(id)>=c;
+  return `<li class="${ok?'done':''}"><span class="nm"><a href="${esc(it.u)}" target="_blank" rel="noopener">${esc(it.n)}</a>${fir?'<span class="tag fir" title="Must be found in raid">FIR</span>':''}</span>${stepper(id,c)}</li>`;
+}
+function stepper(id,need){
+  const n=esc(D.items[id].n);
+  return `<span class="step"><button data-item="${id}" data-d="-1" aria-label="One fewer ${n}">−</button><span class="num">${have(id)}/${need}</span><button data-item="${id}" data-d="1" aria-label="One more ${n}">+</button></span>`;
+}
+function card(x){
+  const m=missing(x), extra=[];
+  x.d.sk.forEach(([n,l])=>extra.push(`<li><span class="nm">${esc(n)} skill</span><span class="num">level ${l}</span></li>`));
+  x.d.tr.forEach(([n,l])=>extra.push(`<li><span class="nm">${esc(n)}<span class="tag gate">trader</span></span><span class="num">LL${l}</span></li>`));
+  const body = x.d.it.map(itemRow).join('')+extra.join('') || '<li><span class="nm muted">No items needed</span></li>';
+  return `<article class="card ${m?'':'go'}"><header><h3>${esc(x.n)}<span class="lvl">L${x.l}</span></h3><span class="time">${dur(x.d.t)}</span></header>
+  <ul class="reqs">${body}</ul>
+  <footer><span class="${m?'muted':'okc'}">${m? m+' item'+(m>1?'s':'')+' short' : 'Items ready'}</span><button class="btn" data-build="${x.id}">Mark built</button></footer></article>`;
+}
+function renderBuild(){
+  const plan=LEVELS.filter(inPlan), todo=plan.filter(x=>!isBuilt(x));
+  const ready=todo.filter(x=>!blockers(x).length), wait=todo.filter(x=>blockers(x).length);
+  let h=`<p class="muted">${PHASE_DESC[S.target]}</p>`;
+  h+=`<div class="group"><header><h2>Ready to build</h2><span class="muted">${ready.length} upgrade${ready.length===1?'':'s'}, in recommended order</span></header>`;
+  h+= ready.length? `<div class="cards">${ready.map(card).join('')}</div>` : `<div class="note"><p>Nothing left to build in this plan. Raise “Plan through” to see the next phase.</p></div>`;
+  h+='</div>';
+  if(wait.length){
+    h+=`<div class="group"><header><h2>Waiting on other stations</h2></header><div class="rows">`+wait.map(x=>`<div class="row"><span><b>${esc(x.n)}</b><span class="lvl">L${x.l}</span></span><span class="why">needs ${esc(blockers(x).join(', '))}</span></div>`).join('')+`</div></div>`;
+  }
+  const done=D.stations.filter(s=>built(s.k)>0).sort((a,b)=>a.n.localeCompare(b.n));
+  h+=`<div class="group"><header><h2>Built</h2><span class="muted">Stash is set to level 4 for Edge of Darkness. Undo levels if your edition starts lower.</span></header><div class="rows">`+
+    (done.map(s=>`<div class="row"><span><b>${esc(s.n)}</b><span class="lvl">L${built(s.k)} of ${s.lv.length}</span></span><button class="btn ghost" data-undo="${s.k}">Undo last level</button></div>`).join('')||'<div class="row muted">Nothing yet.</div>')+`</div></div>`;
+  $('v-build').innerHTML=h;
+}
+function needs(){
+  const m={};
+  LEVELS.filter(x=>inPlan(x)&&!isBuilt(x)).forEach(x=>x.d.it.forEach(([id,c,fir])=>{
+    const e=m[id]||(m[id]={id,need:0,fir:0,uses:[],pri:x.pri}); e.need+=c; if(fir) e.fir+=c; e.uses.push(x.n+' '+x.l);
+  }));
+  return Object.values(m);
+}
+function renderItems(){
+  const all=needs(), cash=all.filter(e=>CASH[e.id]), items=all.filter(e=>!CASH[e.id]);
+  let rows=items.slice().sort((a,b)=>a.pri-b.pri);
+  if(filt==='missing') rows=rows.filter(e=>have(e.id)<e.need);
+  if(filt==='fir') rows=rows.filter(e=>e.fir>0);
+  if(filt==='xfer') rows=rows.filter(e=>D.items[e.id].x);
+  const firShort=e=>Math.max(0,e.fir-have(e.id)), buyable=e=>Math.max(0,e.need-have(e.id))-firShort(e);
+  const buy=items.reduce((s,e)=>s+buyable(e)*D.items[e.id].p,0);
+  let h=`<div class="group"><header><h2>Shopping list</h2><span class="muted">Everything still needed for unbuilt upgrades in the current plan</span></header>
+  <div class="note"><p><b>Cash to set aside:</b> ${cash.length?cash.map(e=>`<span class="num">${CASH[e.id]}${fmt(e.need)}</span>`).join(' · '):'none'}. <b>Flea cost of the missing items you are allowed to buy:</b> <span class="num">₽${fmt(buy)}</span>.</p>
+  <p class="muted">FIR means that many must be found in raid, so they have to come from your own raids, scav runs or crafts. Everything else can be bought. The flea market opens at level 15.</p></div>
+  <div class="filters" id="filters">${[['all','All'],['missing','Still missing'],['fir','Found in raid'],['xfer','Fits the transfer grid']].map(([k,l])=>`<button class="chip" data-f="${k}" aria-pressed="${filt===k}">${l}</button>`).join('')}</div>
+  <div class="scroll"><table><thead><tr><th>Item</th><th>Used for</th><th class="r">Have / need</th><th class="r">Flea each</th><th class="r">Left to get</th></tr></thead><tbody>`;
+  h+= rows.map(e=>{ const it=D.items[e.id], short=Math.max(0,e.need-have(e.id));
+    return `<tr class="${short?'':'done'}"><td><a href="${esc(it.u)}" target="_blank" rel="noopener">${esc(it.n)}</a>${e.fir?`<span class="tag fir">FIR ×${e.fir}</span>`:''}${it.x?'<span class="tag x" title="Allowed in the Prestige 1 transfer grid">XFER</span>':''}</td>
+    <td><span class="uses">${esc(e.uses.join(', '))}</span></td><td class="r">${stepper(e.id,e.need)}</td><td class="r num">${it.p?'₽'+fmt(it.p):'—'}</td><td class="r num">${!short?'✓':[buyable(e)?(it.p?'₽'+fmt(buyable(e)*it.p):'no price'):'', firShort(e)?'find '+firShort(e):''].filter(Boolean).join(' + ')}</td></tr>`; }).join('') || '<tr><td colspan="5" class="muted">Nothing matches this filter.</td></tr>';
+  h+='</tbody></table></div></div>';
+  $('v-items').innerHTML=h;
+}
+function renderTraders(){
+  let h=syncPanel()+`<div class="note"><p><b>Loyalty levels now need only player level and reputation.</b> There is no money-spent requirement in the current data. Reputation comes almost entirely from tasks, so the fastest route is each trader's opening task chain.</p>
+  <p><b>Do the Tour story chapter first.</b> After a reset most traders and maps are locked, and each Tour step opens one. See Player tips for the order.</p>
+  <p class="muted">Three hideout upgrades are locked behind traders: Weapon Rack 1 needs Mechanic LL2; Heating 3 and Gear Rack 1 need Ragman LL2. The rep shown below counts only the tasks you tick here, so your in-game number can be higher.</p></div><div class="cards">`;
+  D.traders.forEach(t=>{
+    const rep=t.tk.reduce((s,k)=>s+(S.tasks[k.id]?k.r:0),0);
+    h+=`<article class="card trader"><header><h3>${esc(t.n)}</h3><span class="time">tracked rep ${rep.toFixed(2)}</span></header>
+    <div class="lls">${t.lv.slice(1).map(([l,pl,r])=>`<span class="${rep>=r?'hit':''}">LL${l}: level <b>${pl}</b>, rep <b>${r.toFixed(2)}</b></span>`).join('')}</div>
+    <ul class="tasks">${t.tk.map(k=>`<li><label><input type="checkbox" id="tk-${k.id}" data-task="${k.id}" ${S.tasks[k.id]?'checked':''}><span class="t">${esc(k.n)} <a href="${esc(k.u)}" target="_blank" rel="noopener" aria-label="${esc(k.n)} on the wiki">↗</a><span class="sub">${[k.m.length?esc(k.m.join(' / ')):'', k.q.length?'after '+esc(k.q.join(', ')):'', k.g.length?'hand in '+k.g.map(g=>g[1]+'× '+esc(g[0])+(g[2]?' (FIR)':'')).join(', '):''].filter(Boolean).join(' · ')}</span></span><span class="rep">+${k.r.toFixed(2)}</span></label></li>`).join('')}</ul></article>`;
+  });
+  $('v-traders').innerHTML=h+'</div>';
+}
+function renderPrestige(){
+  let cells=[], used=0;
+  const list=XFER.map(([id,c,why])=>{ const it=D.items[id]; const sz=it.w*it.h*c; used+=sz; for(let i=0;i<sz;i++) cells.push(it.s);
+    return `<li><label><input type="checkbox" id="xf-${id}" data-xfer="${id}" ${S.xfer[id]?'checked':''}><span class="t">${c}× ${esc(it.n)}<span class="sub">${esc(why)} · ${it.w}×${it.h} each · ${sz} cell${sz>1?'s':''}</span></span><span class="rep">₽${fmt(it.p*c)}</span></label></li>`; }).join('');
+  let grid=''; for(let i=0;i<24;i++) grid+=`<i class="${cells[i]?'f':''}">${esc(cells[i]||'')}</i>`;
+  $('v-prestige').innerHTML=`
+  <div class="cols">
+   <div class="panel"><h2>Before you press the button</h2>
+    <ul><li><b>PvE Prestige 1 needs</b> level 15 and ₽5,000,000. No task, hideout or skill requirement.</li>
+    <li>Fill the 8×3 transfer grid. It is the only inventory that survives.</li>
+    <li>Roubles, stash, trader levels, tasks and the whole hideout are wiped. Leftover money is worth nothing after the reset.</li></ul></div>
+   <div class="panel"><h2>What you keep</h2>
+    <ul><li>10% of your skill levels and weapon mastery in PvE, plus one Charisma level and 50 TarCoin.</li>
+    <li>Achievements, profile stats and the prestige level itself.</li>
+    <li>Your edition perks. An Edge of Darkness stash is already at level 4, so the stash upgrades (about ₽11M and €200k) are skipped.</li>
+    <li>The 10% matters for the hideout: Medstation 2 needs Health 2, Security 2 needs Endurance 2, and Intelligence Center 2 and Water Collector 2 need Attention 3.</li></ul></div>
+  </div>
+  <div class="group"><header><h2>Suggested transfer grid</h2><span class="muted">${used} of 24 cells</span></header>
+   <div class="cols"><div class="card"><ul class="tasks">${list}</ul></div>
+   <div class="panel"><div class="grid83" aria-hidden="true">${grid}</div>
+    <p>This fill covers the pricier transferable parts of Medstation 2, Security 2 and Nutrition Unit 2, plus the batteries for Rest Space 3. It leaves out cheap ones such as Esmarch tourniquets and WD-40. The aim is to skip the slowest finds before the flea market opens at level 15.</p>
+    <p class="muted">The grid only accepts building materials, tools, fuel, food, meds, maps and a set list of valuables. Keys, electronics (drills, motors, relays, wires) and weapons are not allowed. Tick “Fits the transfer grid” on the shopping list to see every eligible hideout item if you want a different mix.</p>
+    <p class="muted">Not verified: whether transferred items keep found-in-raid status. Only the Ophthalmoscope in this list is needed as FIR. Swap it for a Sewing kit if you would rather not gamble a slot.</p></div></div></div>
+  <div class="cols">
+   <div class="panel"><h2>The first week back</h2>
+    <ul><li>Day one: buy every Phase 1 upgrade you can with cash. Most cost under ₽100k and build instantly.</li>
+    <li>Get Medstation 1 and Water Collector 1 up first so Defective Wall 1 can start. Wall levels 2 and 3 are 12h and 24h timers with no item cost, and the Gym, Hall of Fame and Gear Rack all sit behind level 6.</li>
+    <li>Prestige 2 in PvE needs level 25, ₽10,000,000, the task New Beginning and the Tour chapter, Strength 10, Endurance 10, Charisma 7, and Intelligence Center 1, Nutrition Unit 2 and Rest Space 2. Those three stations are front of the queue here.</li>
+    <li>Start long timers before you log off on weeknights: Medstation 3 (12h), Workbench 3 (11h), Vents 3 (10h), Nutrition Unit 3 (14h), Generator 3 and Water Collector 3 (16h), Security 3 (17h).</li></ul></div>
+   <div class="panel"><h2>Gathering</h2>
+    <ul><li>Run your scav every cooldown. Everything a scav extracts with counts as found in raid, which is what the FIR-tagged requirements need.</li>
+    <li>Do not sell hardware early. Bolts, screw nuts, wires, hoses, relays, motors, light bulbs and tape are needed in bulk across Phases 2 and 3.</li>
+    <li>Until level 15 you have no flea market, so non-FIR items come from raids, trader stock and barters. After 15, buy the non-FIR remainder outright and save raid time for the FIR ones.</li>
+    <li>Each item name links to its wiki page, which lists spawn locations, trader barters and crafts.</li></ul></div>
+  </div>`;
+}
+
+function renderTips(){
+  const road=[['1','15','₽5M','—','—','—','10%','8×3'],
+   ['2','25','₽10M','10 / 10 / 7','Intelligence Center 1, Nutrition Unit 2, Rest Space 2','New Beginning, Tour','20%','8×4'],
+   ['3','35','₽15M','10 / 10 / 7','Same as Prestige 2','New Beginning, Tour, Falling Skies','30%','8×5'],
+   ['4','40','₽15M','15 / 15 / 12','Same as Prestige 2','New Beginning, Tour, obtain the Ticket from Tarkov','40%','8×6'],
+   ['5','47','₽20M','20 / 20 / 20','Intelligence Center 2, Security 3, Rest Space 3','New Beginning, Collector, Tour, They Are Already Here, obtain the Ticket','50%','8×7'],
+   ['6','47','₽20M','20 / 20 / 20','Same as Prestige 5','New Beginning, Collector, complete The Ticket','50%','8×8']];
+  const A='<a target="_blank" rel="noopener" href="';
+  $('v-tips').innerHTML=`
+  <div class="note"><p><b>What this tab is.</b> Advice collected from player guides written after the 1.0 release, kept apart from the data-driven tabs. Numbers on the other tabs come from game data; technique tips here are player-reported unless marked otherwise.</p></div>
+  <div class="group"><header><h2>PvE prestige roadmap</h2><span class="muted">Strength / Endurance / Charisma in the skills column</span></header>
+   <div class="scroll"><table><thead><tr><th>Prestige</th><th>Level</th><th>Roubles</th><th>Skills</th><th>Hideout</th><th>Tasks and story</th><th>Skills kept</th><th>Grid</th></tr></thead><tbody>
+   ${road.map(r=>`<tr>${r.map((c,i)=>`<td class="${(i>0&&i<4)||i>5?'num':''}">${c}</td>`).join('')}</tr>`).join('')}</tbody></table></div>
+   <p class="tipsrc">Level, roubles, skills and hideout are from PvE game data. Tasks and story chapters are from the wiki. The Prestige 2 row matches what your in-game Prestige screen shows. “Skills kept” is the share of skills and weapon mastery carried into the next run.</p></div>
+  <div class="cols">
+   <div class="panel"><h2>Task order after the reset</h2>
+    <ul><li><b>Push Tour first.</b> Each step opens a trader or a map: Therapist hand-in (₽250,000) opens Streets, then Interchange opens Skier and Customs, Customs opens Mechanic and Factory, Factory opens Prapor and Woods, Woods opens Peacekeeper and Shoreline.</li>
+    <li><b>Later Tour steps:</b> five PMC dogtags to Prapor opens Reserve, $20,000 to Mechanic opens Lighthouse, and the last step is a Labs visit. Tour is also required for Prestige 2 onward.</li>
+    <li><b>Tour stalls on found-in-raid items:</b> five construction materials or tools, two weapons and five PMC dogtags. Keep them from your first raids.</li>
+    <li><b>Two unlock tasks:</b> Mechanic’s Introduction (Woods) opens Jaeger. Skier’s Friend From the West (five PMC kills) opens Peacekeeper’s tasks.</li>
+    <li><b>Plan raids by map, not by task.</b> Customs and Woods carry most early Prapor, Therapist and Skier tasks alongside the Tour steps.</li>
+    <li><b>Stockpile early hand-ins:</b> Salewa kits, disposable syringes and gas analyzers, all found in raid.</li>
+    <li><b>Trader priority:</b> Prapor and Therapist, then Skier and Mechanic, then the rest. Finish whichever trader is one or two tasks from the next loyalty level.</li></ul>
+    <p class="tipsrc">Source: ${A}https://escapefromtarkov.party/en/guides/early-quest-order/">Tarkov Field Guide, early quest order</a> (patch 1.1.5) and ${A}https://timesaver.gg/blog/tarkov-best-quests-after-pve-prestige-reset">timesaver.gg</a>.</p></div>
+   <div class="panel"><h2>Found-in-raid rules</h2>
+    <ul><li>Loot only keeps found-in-raid status if you extract with Survived. A Run Through removes it: earn 200 XP or stay seven minutes before leaving.</li>
+    <li>Items bought on the flea market are never found in raid.</li>
+    <li>Hideout crafts and task rewards count as found in raid.</li>
+    <li>Items sent out with the BTR driver or carried through a map transit keep their status.</li></ul>
+    <p class="tipsrc">Source: Tarkov Field Guide (patch 1.1.5). Thresholds can change between patches.</p></div>
+  </div>
+  <div class="cols">
+   <div class="panel"><h2>Strength and Endurance</h2>
+    <ul><li><b>Hit the next tier’s skill gate before you reset.</b> Part of every skill carries over, so levels gained before the reset are not all lost.</li>
+    <li>Endurance only trains while you move under the overweight limit. Strength only trains while you are over it.</li>
+    <li>Gains in one raid fall sharply after about five skill points. Several short raids beat one long one.</li>
+    <li>Start each raid with one long sprint while light for Endurance. For Strength, sprint overweight, then drop the weight.</li>
+    <li><b>Gym:</b> two sessions a day is the useful limit. The second gives half gains and a third gives none.</li>
+    <li>Players report you can train in a friend’s Gym from their profile before yours is rebuilt.</li>
+    <li><b>Defective Wall levels 2 to 5 each cost 3% Physical skill gain</b> until level 6 is done, so do not leave the wall half built.</li>
+    <li><b>Air Filtering Unit gives +40% Physical skill gain</b> while a filter is inserted. It needs Generator 3 and Vents 3; move it up your list once the level 3s are done.</li></ul>
+    <p class="tipsrc">Source: ${A}https://timesaver.gg/blog/tarkov-prestige-guide">timesaver.gg prestige guide</a>, checked by its authors against the wiki on 5 Nov 2026. Sprint routines are player-reported.</p></div>
+   <div class="panel"><h2>Charisma</h2>
+    <ul><li>Every prestige level grants +1 Charisma.</li>
+    <li>Scav Case: 0.4 points each time you send it out. Run it on every cooldown.</li>
+    <li>Trader repairs: 0.4 points per ₽10,000. Insurance: 0.4 points per ₽200,000.</li>
+    <li>Looting and examining items feeds it passively through Attention and Perception.</li>
+    <li>Skier’s A Life Lesson (BEAR) or Never Too Late To Learn (USEC) gives +1 Strength and +1 Endurance each run. Special Order, Antique Enthusiast and Regulated Materials give Charisma.</li></ul>
+    <p class="tipsrc">Source: timesaver.gg prestige guide, citing the wiki.</p></div>
+  </div>
+  <div class="cols">
+   <div class="panel"><h2>New Beginning (Prestige 2)</h2>
+    <ul><li>Eliminate 10 PMC operatives.</li><li>Survive and extract from The Lab.</li>
+    <li>Hand over two found-in-raid figurines of each kind: PMC, Scav, Boss and Trader.</li>
+    <li>Keep every figurine you find from now on. Later tiers ask for three of each.</li></ul>
+    <p class="tipsrc">Objectives are from the wiki and the PvP game data. The PvE data pull did not include this task, so read the in-game task text before relying on the counts.</p></div>
+   <div class="panel"><h2>Where the valuables spawn</h2>
+    <ul><li>For the found-in-raid valuables the late hideout needs (gold chains, skull rings, Roler watches, figurines, tech manuals), <b>Streets of Tarkov</b> and <b>Lighthouse</b> have the most loose spawn points, well ahead of Shoreline, Woods and Interchange.</li>
+    <li>Ophthalmoscope spawn points are concentrated in The Lab and The Labyrinth.</li>
+    <li>For general money and electronics, guides rank the Interchange store circuit first: OLI, Techlight, Rasmussen, then Goshan for food.</li></ul>
+    <p class="tipsrc">Spawn counts are from tarkov.dev map data, which lists valuables only. It has no spawn data for bolts, wires and other hardware, and I found no reliable player route for those. Store circuit: ${A}https://timesaver.gg/blog/tarkov-best-loot-runs">timesaver.gg loot runs</a>.</p></div>
+  </div>
+  <div class="note"><p class="muted"><b>About the sources.</b> Several of these guides are published by sites that sell boosting services, and guides disagree on hideout order after the Generator. For that reason the Build order tab still follows the game’s own requirements, not any one guide.</p></div>`;
+}
+
+/* ---- sync completed tasks from the game's own log files (read locally, never uploaded) ---- */
+async function scanLogs(files, opts){
+  const sess={};
+  for(const f of files){
+    const parts=String(f.webkitRelativePath||f.name).split('/');
+    const dir=parts.find(x=>/^log_\d{4}\.\d{2}\.\d{2}_/.test(x)); if(!dir) continue;
+    const s=sess[dir]||(sess[dir]={push:[],back:[]});
+    if(/push-notifications_\d+\.log$/.test(f.name)) s.push.push(f);
+    else if(/backend_\d+\.log$/.test(f.name)) s.back.push(f);
+  }
+  const since=opts.since? new Date(opts.since+'T00:00:00').getTime()/1000 : 0;
+  const out={done:{},sessions:0,otherMode:0,unknown:0,folders:Object.keys(sess).length};
+  const re=/\{\s*"type":\s*"new_message"[\s\S]*?\n\}/g;
+  for(const dir of Object.keys(sess)){
+    const s=sess[dir]; if(!s.push.length) continue;
+    const m=dir.match(/^log_(\d{4})\.(\d{2})\.(\d{2})_/);
+    // a session folder is named for the day it started; skip ones that ended well before the cutoff
+    if(since && new Date(+m[1],+m[2]-1,+m[3]).getTime()/1000 < since-2*86400) continue;
+    let pve=0,pvp=0;
+    for(const b of s.back){ const txt=await b.text(); pve+=(txt.match(/gw-pve\./g)||[]).length; pvp+=(txt.match(/gw-pvp\./g)||[]).length; }
+    if(!pve&&!pvp){ out.unknown++; continue; }
+    if((pve>=pvp?'pve':'pvp')!==opts.mode){ out.otherMode++; continue; }
+    out.sessions++;
+    for(const f of s.push){
+      const txt=await f.text();
+      for(const hit of txt.matchAll(re)){
+        let o; try{ o=JSON.parse(hit[0]); }catch(e){ continue; }
+        const g=o.message||{};
+        if(g.type===12 && (g.dt||0)>=since){ const id=String(g.templateId||'').slice(0,24); if(/^[0-9a-f]{24}$/.test(id)) out.done[id]=g.dt; }
+      }
+    }
+  }
+  return out;
+}
+function syncPanel(){
+  const s=S.sync;
+  return `<div class="panel"><h2>Sync completed tasks from your game logs</h2>
+  <p>Pick the <b>Logs</b> folder inside your Escape from Tarkov install folder. This page reads the log files in your browser and ticks off the tasks the game recorded as completed. Nothing is uploaded.</p>
+  <div class="sync">
+   <label for="sync-mode">Game mode<select id="sync-mode"><option value="pve"${s.mode==='pve'?' selected':''}>PvE</option><option value="pvp"${s.mode==='pvp'?' selected':''}>PvP</option></select></label>
+   <label for="sync-since">Only count tasks completed since<input type="date" id="sync-since" value="${esc(s.since||'')}"></label>
+   <button class="btn" data-pick="1">Choose Logs folder</button>
+   ${clearArm? `<button class="btn" data-clear="yes">Yes, clear every tick</button><button class="btn ghost" data-clear="no">Cancel</button>` : `<button class="btn ghost" data-clear="arm">Clear all task ticks</button>`}
+   <input type="file" id="sync-file" webkitdirectory multiple hidden>
+  </div>
+  <p class="muted" role="status">${esc(syncMsg|| (s.last? 'Last sync: '+s.last : 'Set the date to the day you prestiged so earlier completions are ignored. Leave it empty to count everything in the logs.'))}</p>
+  <p class="tipsrc"><b>Where the Logs folder usually is:</b> with the Battlestate launcher, <span class="num">C:\\Battlestate Games\\Escape from Tarkov\\Logs</span>; with Steam, <span class="num">…\\steamapps\\common\\Escape from Tarkov\\build\\Logs</span>. If you installed somewhere else, open the launcher settings to see the game folder, or right-click the game in Steam and choose Manage, Browse local files. The right folder contains subfolders whose names start with <span class="num">log_</span> and a date.</p>
+  <p class="tipsrc"><b>Ticked the wrong tasks?</b> “Clear all task ticks” unticks every task on this tab, including ones you ticked by hand. Fix the date, then sync again. Hideout progress is not affected.</p>
+  <p class="tipsrc">Tasks only. The logs do not record hideout upgrades, items, skills or trader reputation. A session that mixed both game modes is counted under the mode it used most. Your browser may ask you to confirm reading the folder.</p></div>`;
+}
+async function runSync(files){
+  if(!files.length){ return; }
+  syncMsg='Reading logs…'; render();
+  try{
+    const r=await scanLogs(files,{since:S.sync.since,mode:S.sync.mode});
+    const ids=Object.keys(r.done);
+    if(!r.folders){ syncMsg='No game log folders found there. Pick the folder named Logs inside the game install folder.'; render(); return; }
+    const listed={}; D.traders.forEach(t=>t.tk.forEach(k=>{ listed[k.id]=1; }));
+    let fresh=0; ids.forEach(id=>{ if(!S.tasks[id]){ S.tasks[id]=true; if(listed[id]) fresh++; } });
+    const onList=ids.filter(id=>listed[id]).length;
+    const pl=(n,w)=>n+' '+w+(n===1?'':'s'), M=S.sync.mode==='pvp'?'PvP':'PvE';
+    S.sync.last=new Date().toLocaleString()+' · '+pl(ids.length,'completed task')+' in '+pl(r.sessions,M+' session')+' · '+onList+' on these lists';
+    syncMsg='Found '+pl(ids.length,'completed task')+' in '+pl(r.sessions,M+' session')+'. '+onList+' on the lists below, '+fresh+' newly ticked.'+(r.otherMode?' Skipped '+pl(r.otherMode,'session')+' from the other mode.':'')+(r.unknown?' Skipped '+pl(r.unknown,'session')+' with no mode marker.':'');
+    changed(); render();
+  }catch(e){ syncMsg='Could not read those files. Try again and pick the Logs folder.'; render(); }
+}
+function renderStats(){
+  const plan=LEVELS.filter(x=>inPlan(x)&&x.k!=='stash'), b=plan.filter(isBuilt).length;
+  const items=needs().filter(e=>!CASH[e.id]);
+  const short=items.reduce((s,e)=>s+Math.max(0,e.need-have(e.id)),0), firShort=items.reduce((s,e)=>s+Math.max(0,e.fir-have(e.id)),0);
+  const rub=needs().filter(e=>e.id==='5449016a4bdc2d6f028b456f').reduce((s,e)=>s+e.need,0);
+  const ready=LEVELS.filter(x=>inPlan(x)&&!isBuilt(x)&&!blockers(x).length).length;
+  $('stats').innerHTML=[[b+' / '+plan.length,'Upgrades built in plan'],[ready,'Ready to build'],[fmt(short),'Items still to collect'],[fmt(firShort),'Of those, found in raid'],['₽'+fmt(rub),'Roubles for upgrades']].map(([v,l])=>`<div class="stat"><b>${v}</b><span>${l}</span></div>`).join('');
+}
+function focusKey(a){
+  if(!a||a===document.body) return null;
+  const d=a.dataset||{}; let sel=null;
+  if(a.id) sel='#'+a.id;
+  else if(d.item) sel='[data-item="'+d.item+'"][data-d="'+d.d+'"]';
+  else if(d.undo) sel='[data-undo="'+d.undo+'"]';
+  else if(d.f) sel='[data-f="'+d.f+'"]';
+  else if(d.clear) sel='[data-clear]';
+  else if(d.pick) sel='[data-pick]';
+  if(!sel) return null;
+  return {sel, i:[...document.querySelectorAll(sel)].indexOf(a)};
+}
+function render(){
+  const fk=focusKey(document.activeElement);
+  renderStats();
+  ({build:renderBuild,items:renderItems,traders:renderTraders,prestige:renderPrestige,tips:renderTips})[tab]();
+  ['build','items','traders','prestige','tips'].forEach(t=>{ $('v-'+t).hidden = t!==tab; });
+  document.querySelectorAll('.tab').forEach(b=>b.setAttribute('aria-selected', b.dataset.tab===tab));
+  document.querySelectorAll('#target button').forEach(b=>b.setAttribute('aria-pressed', +b.dataset.t===S.target));
+  if(fk){ const els=document.querySelectorAll(fk.sel), el=els[fk.i]||els[0]; if(el&&document.activeElement!==el){ try{ el.focus({preventScroll:true}); }catch(e){} } }
+}
+
+/* ---- saving ---- */
+let ref=null, timer=null, saving=false, dirty=false, localOK=true, why='';
+const say=t=>{ $('save').textContent=t; };
+const clone=o=>JSON.parse(JSON.stringify(o));
+const localMsg=()=>localOK?'Saved in this browser only':'This browser is blocking saved progress';
+function saveLocal(){ try{ localStorage.setItem('hideout-rebuild', JSON.stringify(S)); localOK=true; }catch(e){ localOK=false; } }
+function changed(){ S.ts=Date.now(); saveLocal(); dirty=true; clearTimeout(timer); timer=setTimeout(flush,700); if(!ref) say(localMsg()+(why?' ('+why+')':'')); }
+async function flush(){
+  if(!ref||saving) return; saving=true;
+  while(dirty){ dirty=false; say('Saving…');
+    try{ await ref.set(clone(S)); say('Progress saved'); }
+    catch(e){ say((localOK?'Could not save online. Kept in this browser.':'Could not save progress')+' ('+((e&&(e.code||e.name))||'error')+')'); break; } }
+  saving=false;
+}
+function adopt(o){ if(o&&typeof o==='object'){ S={built:{stash:4},have:{},tasks:{},xfer:{},target:2,ts:0,...o}; ['built','have','tasks','xfer'].forEach(k=>{ if(!S[k]||typeof S[k]!=='object') S[k]={}; }); if(![1,2,3,4].includes(S.target)) S.target=2; if(!S.sync||typeof S.sync!=='object') S.sync={since:'',mode:'pve'}; S.sync.mode=S.sync.mode==='pvp'?'pvp':'pve'; if(typeof S.sync.since!=='string') S.sync.since=''; } }
+async function boot(){
+  try{ adopt(JSON.parse(localStorage.getItem('hideout-rebuild')||'null')); }catch(e){ localOK=false; }
+  const h=location.hash.slice(1); if(['build','items','traders','prestige','tips'].includes(h)) tab=h;
+  render();
+  const use=async n=>{ try{ return window.claude&&window.claude.use ? await window.claude.use(n) : null; }catch(e){ return null; } };
+  const hosted=!!(window.claude&&window.claude.use);
+  if(!hosted){ say(localMsg()); return; }
+  // Each step records where it got to, so a failure names its cause in the status line.
+  const code=e=>(e&&(e.code||e.name))||'error';
+  const within=(p,ms,what)=>Promise.race([p,new Promise((_,no)=>setTimeout(()=>no({code:what+' timed out'}),ms))]);
+  why='connecting to online save';
+  const db=await use('db');
+  if(!db){ why='online save is not available in this view'; say(localMsg()+' ('+why+')'); return; }
+  try{
+    const legacy=db.doc('tracker/state');
+    let r=legacy, snap=null, moved=false, note='';
+    // Preferred: a private document per signed-in person. Falls back to the shared document if that fails.
+    try{
+      const user=await use('user'); const uid=user?await within(user.id(),8000,'identity'):null;
+      if(uid){
+        const mine=db.doc('data/users/'+uid+'/state');
+        snap=await within(mine.get(),12000,'private store');
+        r=mine;
+        if(!snap.exists){ let owner=false; try{ owner=!!(await user.isOwner()); }catch(e){}
+          if(owner){ const old=await within(legacy.get(),12000,'shared store'); if(old.exists){ snap=old; moved=true; } } }
+      } else note='no identity, using shared store';
+    }catch(e){ note='private store failed: '+code(e)+', using shared store'; r=legacy; snap=null; }
+    if(!snap) snap=await within(legacy.get(),12000,'shared store');
+    const remote=snap.exists?snap.data():null;
+    ref=r; why='';
+    const tail=note?' ('+note+')':'';
+    if(remote && (remote.ts||0)>=(S.ts||0)){ adopt(clone(remote)); saveLocal(); render(); say('Progress loaded'+tail); if(moved){ dirty=true; flush(); } }
+    else if(S.ts){ dirty=true; flush(); } else say('Progress saves automatically'+tail);
+    try{ r.onSnapshot(s=>{ if(!s.exists||s.metadata.hasPendingWrites||dirty||saving) return; const o=s.data();
+      if((o.ts||0)>(S.ts||0)){ adopt(clone(o)); saveLocal(); render(); say('Progress updated from another window'); } }, ()=>{}); }catch(e){}
+  }catch(e){ why='online save failed: '+code(e); say(localMsg()+' ('+why+')'); }
+}
+document.addEventListener('click',e=>{
+  const b=e.target.closest('button'); if(!b) return;
+  const d=b.dataset;
+  if(d.clear){ if(d.clear==='yes'){ S.tasks={}; if(S.sync) delete S.sync.last; syncMsg='All task ticks cleared.'; clearArm=false; changed(); } else clearArm=d.clear==='arm'; render(); return; }
+  if(d.pick){ const i=$('sync-file'); if(i) i.click(); return; }
+  if(d.tab){ clearArm=false; tab=d.tab; try{ location.hash=tab; }catch(_){} render(); return; }
+  if(d.t){ S.target=+d.t; changed(); render(); return; }
+  if(d.f){ filt=d.f; render(); return; }
+  if(d.item){ S.have[d.item]=Math.max(0,have(d.item)+(+d.d)); changed(); render(); return; }
+  if(d.build){ const x=LEVELS.find(v=>v.id===d.build); S.built[x.k]=x.l; x.d.it.forEach(([id,c])=>{ if(!CASH[id]) S.have[id]=Math.max(0,have(id)-c); }); changed(); render(); return; }
+  if(d.undo){ S.built[d.undo]=Math.max(0,built(d.undo)-1); changed(); render(); return; }
+});
+document.addEventListener('change',e=>{
+  const d=e.target.dataset||{};
+  if(d.task){ S.tasks[d.task]=e.target.checked; changed(); render(); }
+  if(e.target.id==='sync-mode'){ S.sync.mode=e.target.value==='pvp'?'pvp':'pve'; changed(); return; }
+  if(e.target.id==='sync-since'){ S.sync.since=/^\d{4}-\d{2}-\d{2}$/.test(e.target.value)?e.target.value:''; changed(); return; }
+  if(e.target.id==='sync-file'){ const fl=[...e.target.files]; e.target.value=''; runSync(fl); return; }
+  if(d.xfer){ S.xfer[d.xfer]=e.target.checked; changed(); }
+});
+window.addEventListener('hashchange',()=>{ const h=location.hash.slice(1); if(['build','items','traders','prestige','tips'].includes(h)&&h!==tab){ tab=h; render(); } });
+try{ $('pulled').textContent=new Date(D.fetched+'T12:00:00').toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}); }catch(e){}
+boot();
+</script>

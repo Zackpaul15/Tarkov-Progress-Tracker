@@ -1,0 +1,4 @@
+# Downloads and build outputs. index.html at the top level is the published page and IS tracked.
+build/
+__pycache__/
+*.pyc

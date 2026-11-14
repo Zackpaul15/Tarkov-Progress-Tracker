@@ -1,0 +1,541 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Hideout Rebuild</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: a workshop clipboard. Sticky summary strip, four work views, dense rows with steppers. */
+:root{
+  --bg:#15181a; --panel:#1d2124; --panel2:#252a2e; --line:#343b40; --fg:#e6e4dc; --muted:#98a09d;
+  --accent:#e2a236; --accent-ink:#1a1405; --ok:#74c07a; --warn:#e58556; --fir:#5fb9cf;
+  --display:"Barlow Condensed","Arial Narrow",system-ui,sans-serif;
+  --body:"Barlow",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"JetBrains Mono",ui-monospace,Consolas,monospace;
+  color-scheme:dark;
+}
+@media (prefers-color-scheme: light){ :root:not([data-theme="dark"]){
+  --bg:#eceeec; --panel:#ffffff; --panel2:#f3f5f3; --line:#cdd3d0; --fg:#1a1f21; --muted:#5a6462;
+  --accent:#b87400; --accent-ink:#ffffff; --ok:#2c7a33; --warn:#b3481b; --fir:#0e6c84; color-scheme:light } }
+:root[data-theme="light"]{
+  --bg:#eceeec; --panel:#ffffff; --panel2:#f3f5f3; --line:#cdd3d0; --fg:#1a1f21; --muted:#5a6462;
+  --accent:#b87400; --accent-ink:#ffffff; --ok:#2c7a33; --warn:#b3481b; --fir:#0e6c84; color-scheme:light }
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--body);font-size:15px;line-height:1.5}
+.wrap{max-width:1080px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px 56px;display:flex;flex-direction:column;gap:20px}
+h1,h2,h3{font-family:var(--display);text-wrap:balance;margin:0;letter-spacing:.01em}
+h1{font-size:2.3rem;font-weight:700;text-transform:uppercase;line-height:1}
+h2{font-size:1.5rem;font-weight:600;text-transform:uppercase}
+h3{font-size:1.2rem;font-weight:600}
+p{margin:0;max-width:68ch}
+a{color:var(--accent)}
+.muted{color:var(--muted)}
+.num{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.top{display:flex;flex-wrap:wrap;gap:12px 24px;align-items:flex-end;justify-content:space-between}
+.top p{color:var(--muted)}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:1px;background:var(--line);border:1px solid var(--line)}
+.stat{background:var(--panel);padding:10px 14px;display:flex;flex-direction:column;gap:2px;min-width:0}
+.stat b{font-family:var(--mono);font-size:1.25rem;font-weight:600}
+.stat span{font-size:.75rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
+.bar{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);padding-block:8px;display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center;justify-content:space-between;border-bottom:1px solid var(--line)}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--bg)}
+.tabs,.seg{display:flex;flex-wrap:wrap;gap:4px}
+button{font:inherit;color:inherit;cursor:pointer}
+.tab,.seg button,.chip{background:transparent;border:1px solid var(--line);padding:6px 12px;font-family:var(--display);font-size:1.05rem;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:var(--muted)}
+.tab[aria-selected="true"],.seg button[aria-pressed="true"],.chip[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.seg-label{font-size:.75rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-right:6px}
+.segwrap{display:flex;align-items:center;flex-wrap:wrap;gap:4px}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+section.view{display:flex;flex-direction:column;gap:18px}
+.group{display:flex;flex-direction:column;gap:10px}
+.group>header{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px 12px}
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:12px}
+.card{background:var(--panel);border:1px solid var(--line);display:flex;flex-direction:column;min-width:0}
+.card>header{display:flex;justify-content:space-between;align-items:baseline;gap:8px;padding:10px 14px;border-bottom:1px solid var(--line)}
+.card.go>header{border-bottom-color:var(--ok)}
+.lvl{font-family:var(--mono);font-size:.8rem;color:var(--accent);margin-left:6px}
+.time{font-family:var(--mono);font-size:.78rem;color:var(--muted);white-space:nowrap}
+.reqs{list-style:none;margin:0;padding:6px 14px;display:flex;flex-direction:column}
+.reqs li{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:5px 0;border-bottom:1px dashed var(--line);min-width:0}
+.reqs li:last-child{border-bottom:0}
+.reqs .nm{min-width:0;overflow-wrap:anywhere}
+.reqs a{color:inherit;text-decoration-color:var(--line)}
+.tag{font-family:var(--mono);font-size:.68rem;padding:1px 5px;border:1px solid currentColor;margin-left:6px;white-space:nowrap}
+.tag.fir{color:var(--fir)} .tag.x{color:var(--accent)} .tag.gate{color:var(--warn)}
+.step{display:flex;align-items:center;gap:6px;flex:none}
+.step button{width:26px;height:26px;border:1px solid var(--line);background:var(--panel2);line-height:1;font-family:var(--mono)}
+.step .num{min-width:5.2ch;text-align:center;font-size:.85rem}
+.done .num,.okc{color:var(--ok)}
+.card>footer{margin-top:auto;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 14px;border-top:1px solid var(--line);background:var(--panel2)}
+.btn{background:var(--accent);color:var(--accent-ink);border:0;padding:7px 14px;font-family:var(--display);font-weight:700;font-size:1.05rem;text-transform:uppercase;letter-spacing:.04em}
+.btn.ghost{background:transparent;color:var(--muted);border:1px solid var(--line);font-weight:600}
+.rows{background:var(--panel);border:1px solid var(--line)}
+.row{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:6px 14px;padding:8px 14px;border-bottom:1px solid var(--line)}
+.row:last-child{border-bottom:0}
+.row .why{color:var(--muted);font-size:.88rem}
+.scroll{overflow-x:auto;background:var(--panel);border:1px solid var(--line)}
+table{border-collapse:collapse;width:100%;min-width:680px}
+th,td{padding:7px 12px;text-align:left;border-bottom:1px solid var(--line);vertical-align:middle}
+th{font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:600;background:var(--panel2)}
+td.r,th.r{text-align:right}td.num{white-space:nowrap}
+tr:last-child td{border-bottom:0}
+td .uses{color:var(--muted);font-size:.82rem}
+.filters{display:flex;flex-wrap:wrap;gap:4px}
+.chip{font-size:.95rem;padding:4px 10px}
+.trader .lls{display:flex;flex-wrap:wrap;gap:6px 16px;padding:8px 14px;border-bottom:1px solid var(--line);font-size:.86rem;color:var(--muted)}
+.trader .lls b{color:var(--fg);font-family:var(--mono);font-weight:600}
+.trader .lls .hit b{color:var(--ok)}
+.tasks{list-style:none;margin:0;padding:4px 14px 10px}
+.tasks li{padding:6px 0;border-bottom:1px dashed var(--line)}
+.tasks li:last-child{border-bottom:0}
+.tasks label{display:flex;gap:10px;align-items:flex-start;cursor:pointer}
+.tasks input{margin-top:4px;accent-color:var(--accent);flex:none}
+.tasks .t{flex:1;min-width:0}
+.tasks .sub{display:block;color:var(--muted);font-size:.82rem}
+.tasks .rep{font-family:var(--mono);font-size:.82rem;color:var(--accent);flex:none}
+.tasks input:checked ~ .t{color:var(--muted);text-decoration:line-through}
+.note{background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--accent);padding:12px 14px;display:flex;flex-direction:column;gap:6px}
+.cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px}
+.panel{background:var(--panel);border:1px solid var(--line);padding:14px;display:flex;flex-direction:column;gap:8px;min-width:0}
+.panel ul{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:4px}
+.sync{display:flex;flex-wrap:wrap;gap:10px 16px;align-items:flex-end}
+.sync label{display:flex;flex-direction:column;gap:3px;font-size:.75rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
+.sync input,.sync select{font:inherit;font-size:.95rem;text-transform:none;letter-spacing:0;color:var(--fg);background:var(--panel2);border:1px solid var(--line);padding:6px 8px}
+.tipsrc{color:var(--muted);font-size:.8rem}
+.grid83{display:grid;grid-template-columns:repeat(8,1fr);gap:2px;max-width:360px}
+.grid83 i{aspect-ratio:1;background:var(--panel2);border:1px solid var(--line);font:normal .6rem var(--mono);display:flex;align-items:center;justify-content:center;color:var(--muted);overflow:hidden}
+.grid83 i.f{background:color-mix(in srgb,var(--accent) 22%,var(--panel));color:var(--fg);border-color:var(--accent)}
+.save{font-family:var(--mono);font-size:.75rem;color:var(--muted)}
+.src{color:var(--muted);font-size:.82rem}
+@media (max-width:520px){ h1{font-size:1.9rem} .cards{grid-template-columns:1fr} }
+</style>
+
+<style>body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <div>
+      <h1>Hideout Rebuild</h1>
+      <p>Post-prestige tracker for PvE. Requirements and prices from tarkov.dev's PvE data, last updated <span id="pulled">recently</span>.</p>
+    </div>
+    <span class="save" id="save" role="status">Loading saved progress…</span>
+  </div>
+
+  <div class="stats" id="stats"></div>
+
+  <div class="bar">
+    <div class="tabs" role="tablist" id="tabs">
+      <button class="tab" role="tab" data-tab="build">Build order</button>
+      <button class="tab" role="tab" data-tab="items">Shopping list</button>
+      <button class="tab" role="tab" data-tab="traders">Traders</button>
+      <button class="tab" role="tab" data-tab="prestige">Prestige prep</button>
+      <button class="tab" role="tab" data-tab="tips">Player tips</button>
+    </div>
+    <div class="segwrap"><span class="seg-label">Plan through</span>
+      <div class="seg" id="target">
+        <button data-t="1">Phase 1</button><button data-t="2">Phase 2</button><button data-t="3">Phase 3</button><button data-t="4">Everything</button>
+      </div>
+    </div>
+  </div>
+
+  <section class="view" id="v-build"></section>
+  <section class="view" id="v-items" hidden></section>
+  <section class="view" id="v-traders" hidden></section>
+  <section class="view" id="v-prestige" hidden></section>
+  <section class="view" id="v-tips" hidden></section>
+
+  <p class="src">Sources: hideout, trader and prestige data from <a href="https://tarkov.dev" target="_blank" rel="noopener">tarkov.dev</a>; prestige rules checked against the <a href="https://escapefromtarkov.fandom.com/wiki/Prestige" target="_blank" rel="noopener">Escape from Tarkov Wiki</a>. Flea prices are 24-hour averages from the day of the last update and will drift.</p>
+</div>
+
+<script>
+const D = {"stations":[{"k":"library","n":"Library","lv":[{"l":1,"t":194400,"it":[["5449016a4bdc2d6f028b456f",400000,0],["573478bc24597738002c6175",1,1],["573474f924597738002c6174",2,1],["590c639286f774151567fa95",8,0],["590c645c86f77412b01304d9",5,0],["590c651286f7741e566b6461",5,0],["62a09e73af34e73a266d932a",1,1]],"st":[["rest-space",3]],"sk":[["Hideout Management",5]],"tr":[]}]},{"k":"gym","n":"Gym","lv":[{"l":1,"t":14400,"it":[["590c2e1186f77425357b6124",1,1],["59e35de086f7741778269d84",1,1],["5d40419286f774318526545f",1,1],["57347c77245977448d35f6e2",5,0],["57347c5b245977448d35f6e1",5,0],["590c5bbd86f774785762df04",1,0],["5734795124597738002c6176",5,0]],"st":[["defective-wall",6],["illumination",2],["vents",2]],"sk":[],"tr":[]}]},{"k":"booze-generator","n":"Booze Generator","lv":[{"l":1,"t":172800,"it":[["5d1b39a386f774252339976f",10,0],["5d1b32c186f774252167a530",2,1],["5d1b327086f7742525194449",2,1],["59e35cbb86f7741778269d83",10,0],["619cbfccbedcde2f5b3f7bdd",1,1],["5d1c774f86f7746d6620f8db",5,0],["61bf7b6302b3924be92fa8c3",5,0]],"st":[["water-collector",3],["nutrition-unit",3]],"sk":[],"tr":[]}]},{"k":"shooting-range","n":"Shooting Range","lv":[{"l":1,"t":3600,"it":[["57347c77245977448d35f6e2",1,0],["57347c5b245977448d35f6e1",1,0],["61bf7b6302b3924be92fa8c3",1,0],["5449016a4bdc2d6f028b456f",20000,0]],"st":[["illumination",1]],"sk":[],"tr":[]},{"l":2,"t":86400,"it":[["590c2e1186f77425357b6124",1,1],["61bf7b6302b3924be92fa8c3",8,0],["590c2c9c86f774245b1f03f2",1,1],["5c06779c86f77426e00dd782",6,0],["59e35ef086f7741777737012",3,0],["5e2af22086f7746d3f3c33fa",3,0],["5d1b2fa286f77425227d1674",3,1],["590a3cd386f77436f20848cb",6,0],["5b4391a586f7745321235ab2",3,0],["59e35de086f7741778269d84",1,1]],"st":[["illumination",3],["workbench",2]],"sk":[],"tr":[]},{"l":3,"t":86400,"it":[["62a0a0bb621468534a797ad5",1,1],["5c06779c86f77426e00dd782",10,0],["590a3b0486f7743954552bdb",5,0],["61bf7b6302b3924be92fa8c3",5,0],["5c06782b86f77426df5407d2",5,0],["5d1b313086f77425227d1678",5,0],["59e36c6f86f774176c10a2a7",5,0],["544fb5454bdc2df8738b456a",1,0],["590c639286f774151567fa95",1,1]],"st":[],"sk":[],"tr":[]}]},{"k":"scav-case","n":"Scav Case","lv":[{"l":1,"t":288000,"it":[["59e3639286f7741777737013",3,1],["5d235a5986f77443f6329bc6",6,1],["5734758f24597738025ee253",8,1],["59faf7ca86f7740dbe19f6c2",4,1],["5d1b376e86f774252519444e",3,1],["5b7c710788a4506dec015957",1,0],["5bc9bc53d4351e00367fbcee",1,1]],"st":[["intelligence-center",2]],"sk":[],"tr":[]}]},{"k":"cultist-circle","n":"Cultist Circle","lv":[{"l":1,"t":3600,"it":[["5b4391a586f7745321235ab2",1,0],["590c2c9c86f774245b1f03f2",1,1],["5e2af37686f774755a234b65",1,1],["62a09ee4cf4a99369e262453",3,1],["5d1b392c86f77425243e98fe",5,1],["59e3596386f774176c10a2a2",1,1]],"st":[["security",1]],"sk":[],"tr":[]}]},{"k":"gear-rack","n":"Gear Rack","lv":[{"l":1,"t":21600,"it":[["544fb5454bdc2df8738b456a",1,0],["5e2af47786f7746d404f3aaa",10,0],["61bf83814088ec1a363d7097",1,1],["590a3cd386f77436f20848cb",8,0],["57347c5b245977448d35f6e1",15,0],["62a0a098de7ac8199358053b",1,1],["59e35de086f7741778269d84",1,1],["5449016a4bdc2d6f028b456f",300000,0]],"st":[["defective-wall",6],["illumination",2]],"sk":[],"tr":[["Ragman",2]]},{"l":2,"t":43200,"it":[["590c311186f77424d1667482",1,1],["5e2af4d286f7746d4159f07a",10,0],["590a3cd386f77436f20848cb",12,0],["590c31c586f774245e3141b2",8,0],["590c35a486f774273531c822",5,0],["57347c1124597737fb1379e3",5,0],["59e35de086f7741778269d84",1,1],["5449016a4bdc2d6f028b456f",800000,0]],"st":[["hall-of-fame",1]],"sk":[],"tr":[["Ragman",3]]},{"l":3,"t":86400,"it":[["60391afc25aff57af81f7085",1,1],["62a0a0bb621468534a797ad5",1,1],["590a3cd386f77436f20848cb",15,0],["5e2af29386f7746d4159f077",10,0],["61bf7b6302b3924be92fa8c3",15,0],["5e2af41e86f774755a234b67",10,0],["591094e086f7747caa7bb2ef",1,1],["5449016a4bdc2d6f028b456f",1200000,0]],"st":[["hall-of-fame",2]],"sk":[],"tr":[["Ragman",4]]}]},{"k":"bitcoin-farm","n":"Bitcoin Farm","lv":[{"l":1,"t":122400,"it":[["5734779624597737e04bf329",15,0],["57347c2e24597744902c94a1",10,1],["59e36c6f86f774176c10a2a7",15,0],["5c05300686f7746dce784e5d",2,0],["57347cd0245977445a2d6ff1",10,0]],"st":[["intelligence-center",2]],"sk":[],"tr":[]},{"l":2,"t":180000,"it":[["5734779624597737e04bf329",15,0],["57347c2e24597744902c94a1",10,0],["590a3b0486f7743954552bdb",15,1],["5d1b313086f77425227d1678",10,0],["5d0378d486f77420421a5ff4",5,0]],"st":[["generator",3]],"sk":[],"tr":[]},{"l":3,"t":381600,"it":[["5734779624597737e04bf329",25,1],["5d1b39a386f774252339976f",15,0],["5d1b2fa286f77425227d1674",10,0],["5d1b327086f7742525194449",10,0],["5d03794386f77420415576f5",2,0]],"st":[["solar-power",1],["water-collector",3]],"sk":[],"tr":[]}]},{"k":"heating","n":"Heating","lv":[{"l":1,"t":0,"it":[["5449016a4bdc2d6f028b456f",25000,0],["57347b8b24597737dd42e192",2,0]],"st":[],"sk":[],"tr":[]},{"l":2,"t":3600,"it":[["5449016a4bdc2d6f028b456f",50000,0],["5e2af2bc86f7746d3f3c33fc",2,0],["590a373286f774287540368b",5,0],["56742c284bdc2d98058b456d",5,0]],"st":[["vents",1]],"sk":[["Endurance",1]],"tr":[]},{"l":3,"t":28800,"it":[["5d1c774f86f7746d6620f8db",10,0],["5c06779c86f77426e00dd782",10,0],["5d1b313086f77425227d1678",4,1],["619cbf476b8a1b37a54eebf8",2,1]],"st":[["generator",2],["workbench",2]],"sk":[],"tr":[["Ragman",2]]}]},{"k":"generator","n":"Generator","lv":[{"l":1,"t":0,"it":[["5449016a4bdc2d6f028b456f",100000,0],["590a3c0a86f774385a33c450",1,0]],"st":[["security",1]],"sk":[],"tr":[]},{"l":2,"t":3600,"it":[["5d1b313086f77425227d1678",10,0],["5d1b2fa286f77425227d1674",1,0],["5c06779c86f77426e00dd782",15,0],["619cbfeb6b8a1b37a54eebfa",1,0]],"st":[["security",1],["vents",1]],"sk":[],"tr":[]},{"l":3,"t":57600,"it":[["5d1b313086f77425227d1678",12,0],["5d1b2fa286f77425227d1674",3,1],["590a3c0a86f774385a33c450",16,0],["57347c2e24597744902c94a1",5,1],["61bf7b6302b3924be92fa8c3",10,0]],"st":[["security",3],["vents",3]],"sk":[],"tr":[]}]},{"k":"vents","n":"Vents","lv":[{"l":1,"t":0,"it":[["5449016a4bdc2d6f028b456f",25000,0]],"st":[],"sk":[],"tr":[]},{"l":2,"t":3600,"it":[["5d1b2fa286f77425227d1674",1,0],["5733279d245977289b77ec24",1,0],["5734779624597737e04bf329",5,0],["61bf7b6302b3924be92fa8c3",5,0]],"st":[],"sk":[],"tr":[]},{"l":3,"t":36000,"it":[["5d1b2fa286f77425227d1674",4,1],["5c06779c86f77426e00dd782",14,0],["590a3b0486f7743954552bdb",5,0],["5733279d245977289b77ec24",4,1],["61bf7b6302b3924be92fa8c3",10,0]],"st":[["generator",1]],"sk":[["Strength",2]],"tr":[]}]},{"k":"security","n":"Security","lv":[{"l":1,"t":0,"it":[["5449016a4bdc2d6f028b456f",20000,0],["590c2c9c86f774245b1f03f2",1,0]],"st":[],"sk":[],"tr":[]},{"l":2,"t":3600,"it":[["5449016a4bdc2d6f028b456f",45000,0],["5af04b6486f774195a3ebb49",1,0],["590c5bbd86f774785762df04",2,0],["60391b0fb847c71012789415",2,0]],"st":[["illumination",1]],"sk":[["Endurance",2]],"tr":[]},{"l":3,"t":61200,"it":[["5d1b304286f774253763a528",2,1],["5c06779c86f77426e00dd782",10,0],["5d1b2ffd86f77425243e8d17",8,0],["590c392f86f77444754deb29",1,1]],"st":[["illumination",3]],"sk":[],"tr":[]}]},{"k":"lavatory","n":"Lavatory","lv":[{"l":1,"t":0,"it":[["5449016a4bdc2d6f028b456f",2000,0],["5c13cef886f774072e618e82",1,0],["57347c93245977448d35f6e3",1,0],["5c13cd2486f774072c757944",1,0],["62a0a098de7ac8199358053b",1,0]],"st":[],"sk":[],"tr":[]},{"l":2,"t":3600,"it":[["59e35cbb86f7741778269d83",6,0],["59e35ef086f7741777737012",6,0],["59e35de086f7741778269d84",1,0],["5e2af29386f7746d4159f077",3,0],["61bf83814088ec1a363d7097",2,0]],"st":[["water-collector",1],["vents",1]],"sk":[],"tr":[]},{"l":3,"t":25200,"it":[["59e35cbb86f7741778269d83",10,0],["5d1b327086f7742525194449",2,1],["590c2e1186f77425357b6124",1,1],["590c346786f77423e50ed342",6,0]],"st":[["vents",2],["water-collector",2]],"sk":[],"tr":[]}]},{"k":"stash","n":"Stash","lv":[{"l":1,"t":0,"it":[],"st":[],"sk":[],"tr":[]},{"l":2,"t":3600,"it":[["5d1b317c86f7742523398392",1,0],["59e35ef086f7741777737012",10,0],["590c5bbd86f774785762df04",4,0],["5449016a4bdc2d6f028b456f",2500000,0],["590c31c586f774245e3141b2",5,0]],"st":[["vents",1]],"sk":[],"tr":[]},{"l":3,"t":43200,"it":[["59e35de086f7741778269d84",2,0],["59e35ef086f7741777737012",15,0],["5449016a4bdc2d6f028b456f",8500000,0],["590c31c586f774245e3141b2",7,0]],"st":[["vents",2],["heating",2]],"sk":[],"tr":[]},{"l":4,"t":345600,"it":[["569668774bdc2da2298b4568",200000,0],["57347c5b245977448d35f6e1",10,0],["57347c77245977448d35f6e2",10,0],["590c35a486f774273531c822",8,0],["60391afc25aff57af81f7085",2,1]],"st":[["generator",3],["workbench",3],["heating",3],["intelligence-center",2]],"sk":[],"tr":[]}]},{"k":"medstation","n":"Medstation","lv":[{"l":1,"t":0,"it":[["5449016a4bdc2d6f028b456f",50000,0],["5d1b3f2d86f774253763b735",1,0],["5d1b3a5d86f774252167ba22",1,0],["544fb25a4bdc2dfb738b4567",2,0],["62a0a043cf4a99369e2624a5",1,0]],"st":[],"sk":[],"tr":[]},{"l":2,"t":3600,"it":[["5449016a4bdc2d6f028b456f",150000,0],["5b4335ba86f7744d2837a264",2,0],["59e3606886f77417674759a5",6,0],["5e831507ea0a7c419c2f9bd9",10,0],["619cc01e0a7c3a1a2731940c",3,0]],"st":[["generator",1]],"sk":[["Health",2]],"tr":[]},{"l":3,"t":43200,"it":[["5449016a4bdc2d6f028b456f",500000,0],["59e3606886f77417674759a5",10,0],["5c0530ee86f774697952d952",1,0],["5af0534a86f7743b6f354284",1,1]],"st":[["generator",2],["lavatory",2]],"sk":[["Vitality",3]],"tr":[]}]},{"k":"nutrition-unit","n":"Nutrition Unit","lv":[{"l":1,"t":0,"it":[["5449016a4bdc2d6f028b456f",25000,0],["5d1b313086f77425227d1678",2,0],["59e36c6f86f774176c10a2a7",1,0],["62a09ee4cf4a99369e262453",1,0]],"st":[["generator",1]],"sk":[],"tr":[]},{"l":2,"t":0,"it":[["590c311186f77424d1667482",4,0],["59e35cbb86f7741778269d83",4,0],["59faf98186f774067b6be103",2,0],["5d1b313086f77425227d1678",3,0]],"st":[["lavatory",2]],"sk":[],"tr":[]},{"l":3,"t":50400,"it":[["5449016a4bdc2d6f028b456f",125000,0],["5af0484c86f7740f02001f7f",5,0],["59e35abd86f7741778269d82",5,0],["5e2af00086f7746d3f3c33f7",2,1]],"st":[["generator",2],["lavatory",2],["stash",2]],"sk":[["Metabolism",3]],"tr":[]}]},{"k":"rest-space","n":"Rest Space","lv":[{"l":1,"t":0,"it":[["5449016a4bdc2d6f028b456f",10000,0],["57347c1124597737fb1379e3",1,0],["57347b8b24597737dd42e192",1,0]],"st":[["vents",1]],"sk":[],"tr":[]},{"l":2,"t":3600,"it":[["5449016a4bdc2d6f028b456f",75000,0],["5734781f24597737e04bf32a",1,0],["590a391c86f774385a33c404",1,0],["590a3cd386f77436f20848cb",5,0]],"st":[["generator",1]],"sk":[],"tr":[]},{"l":3,"t":7200,"it":[["59e36c6f86f774176c10a2a7",5,0],["5c06782b86f77426df5407d2",5,0],["5c06779c86f77426e00dd782",10,0],["5e2aedd986f7746d404f3aa4",4,0]],"st":[],"sk":[],"tr":[]}]},{"k":"workbench","n":"Workbench","lv":[{"l":1,"t":0,"it":[["57347c77245977448d35f6e2",2,0],["57347c5b245977448d35f6e1",2,0],["544fb5454bdc2df8738b456a",1,0]],"st":[],"sk":[],"tr":[]},{"l":2,"t":3600,"it":[["590c2e1186f77425357b6124",3,0],["59e35de086f7741778269d84",2,0],["57347c5b245977448d35f6e1",10,0],["5d1c819a86f774771b0acd6c",3,0],["62a0a0bb621468534a797ad5",1,0]],"st":[["illumination",1]],"sk":[],"tr":[]},{"l":3,"t":39604,"it":[["5449016a4bdc2d6f028b456f",395000,0],["5af04b6486f774195a3ebb49",2,1],["5bc9b355d4351e6d1509862a",1,1],["60391a8b3364dc22b04d0ce5",5,0]],"st":[["generator",2],["stash",2]],"sk":[],"tr":[]}]},{"k":"intelligence-center","n":"Intelligence Center","lv":[{"l":1,"t":0,"it":[["5c12613b86f7743bbe2c3f76",1,0],["62a0a124de7ac81993580542",1,0],["574eb85c245977648157eec3",1,0],["5d1b304286f774253763a528",1,0],["59e36c6f86f774176c10a2a7",1,0]],"st":[["security",1],["vents",1],["generator",1],["workbench",1]],"sk":[],"tr":[]},{"l":2,"t":3600,"it":[["5c12613b86f7743bbe2c3f76",3,0],["590c621186f774138d11ea29",3,0],["59e36c6f86f774176c10a2a7",7,0],["590a386e86f77429692b27ab",8,0]],"st":[["security",2],["medstation",2],["nutrition-unit",2]],"sk":[["Attention",3]],"tr":[]},{"l":3,"t":86400,"it":[["5c052f6886f7746b1e3db148",2,1],["5c05300686f7746dce784e5d",2,0],["62a0a16d0b9d3c46de5b6e97",8,0],["5d0375ff86f774186372f685",8,0],["61bf7c024770ee6f9c6b8b53",2,0],["6389c7f115805221fb410466",1,0]],"st":[["workbench",3],["generator",3]],"sk":[],"tr":[]}]},{"k":"illumination","n":"Illumination","lv":[{"l":1,"t":0,"it":[["5449016a4bdc2d6f028b456f",10000,0],["56742c284bdc2d98058b456d",1,0]],"st":[],"sk":[],"tr":[]},{"l":2,"t":0,"it":[["5d1b392c86f77425243e98fe",14,0],["5c06779c86f77426e00dd782",10,0]],"st":[["generator",1]],"sk":[],"tr":[]},{"l":3,"t":21600,"it":[["5449016a4bdc2d6f028b456f",50000,0],["5c06782b86f77426df5407d2",7,1],["5c06779c86f77426e00dd782",12,0],["590a3cd386f77436f20848cb",12,0]],"st":[["generator",2],["workbench",1]],"sk":[],"tr":[]}]},{"k":"hall-of-fame","n":"Hall of Fame","lv":[{"l":1,"t":43207,"it":[["5d1b31ce86f7742523398394",1,1],["5e2af47786f7746d404f3aaa",5,0],["59e3658a86f7741776641ac4",1,1],["5d1b392c86f77425243e98fe",5,0],["590c31c586f774245e3141b2",5,0],["5734795124597738002c6176",5,0]],"st":[["defective-wall",6],["illumination",2]],"sk":[],"tr":[]},{"l":2,"t":64800,"it":[["590c639286f774151567fa95",1,1],["5af04b6486f774195a3ebb49",1,1],["590c2e1186f77425357b6124",1,1],["5bc9bc53d4351e00367fbcee",1,1],["590a3cd386f77436f20848cb",10,0],["59e35ef086f7741777737012",6,0],["57347c1124597737fb1379e3",3,0],["590c346786f77423e50ed342",5,0],["5e2af22086f7746d3f3c33fa",2,0]],"st":[],"sk":[],"tr":[]},{"l":3,"t":86400,"it":[["62a0a0bb621468534a797ad5",1,1],["59e35de086f7741778269d84",1,1],["59e3639286f7741777737013",1,1],["590a3cd386f77436f20848cb",15,0],["5e2af29386f7746d4159f077",3,1],["57347cd0245977445a2d6ff1",6,0],["61bf7b6302b3924be92fa8c3",15,0],["59e36c6f86f774176c10a2a7",5,0]],"st":[],"sk":[],"tr":[]}]},{"k":"air-filtering-unit","n":"Air Filtering Unit","lv":[{"l":1,"t":172800,"it":[["5696686a4bdc2da3298b456a",25000,0],["5d0378d486f77420421a5ff4",5,0],["590c595c86f7747884343ad7",5,1],["619cbf476b8a1b37a54eebf8",10,0]],"st":[["generator",3],["vents",3]],"sk":[],"tr":[]}]},{"k":"solar-power","n":"Solar Power","lv":[{"l":1,"t":259200,"it":[["569668774bdc2da2298b4568",25000,0],["5d0375ff86f774186372f685",10,0],["5d03775b86f774203e7e0c4b",6,0],["5d0378d486f77420421a5ff4",10,0],["5d1b304286f774253763a528",3,1],["6389c85357baa773a825b356",1,0]],"st":[["generator",3],["workbench",3]],"sk":[],"tr":[]}]},{"k":"defective-wall","n":"Defective Wall","lv":[{"l":1,"t":0,"it":[],"st":[["medstation",1],["water-collector",1]],"sk":[],"tr":[]},{"l":2,"t":43200,"it":[],"st":[],"sk":[],"tr":[]},{"l":3,"t":86400,"it":[],"st":[],"sk":[],"tr":[]},{"l":4,"t":10800,"it":[["63a0b208f444d32d6f03ea1e",1,0]],"st":[],"sk":[],"tr":[]},{"l":5,"t":10800,"it":[["5d40419286f774318526545f",1,0],["590c2e1186f77425357b6124",1,0]],"st":[],"sk":[],"tr":[]},{"l":6,"t":43200,"it":[["59e35cbb86f7741778269d83",2,0],["57347c1124597737fb1379e3",1,0],["590c2e1186f77425357b6124",1,0],["5af04b6486f774195a3ebb49",1,0],["61bf7b6302b3924be92fa8c3",5,0],["590c346786f77423e50ed342",1,0],["5c06779c86f77426e00dd782",2,0],["5d1b392c86f77425243e98fe",2,0]],"st":[],"sk":[],"tr":[]}]},{"k":"weapon-rack","n":"Weapon Rack","lv":[{"l":1,"t":43200,"it":[["5d1b317c86f7742523398392",1,1],["5d40419286f774318526545f",1,1],["590a3cd386f77436f20848cb",5,0],["590c346786f77423e50ed342",5,0],["57347c5b245977448d35f6e1",15,0],["5734795124597738002c6176",5,0],["590c31c586f774245e3141b2",5,0]],"st":[["illumination",3],["stash",2]],"sk":[],"tr":[["Mechanic",2]]},{"l":2,"t":64800,"it":[["59e35de086f7741778269d84",1,1],["62a0a0bb621468534a797ad5",1,1],["590a3cd386f77436f20848cb",10,0],["59e35ef086f7741777737012",10,0],["57347c1124597737fb1379e3",10,0],["5c06779c86f77426e00dd782",10,0],["61bf7b6302b3924be92fa8c3",10,0],["5d1c819a86f774771b0acd6c",5,0],["5e2af22086f7746d3f3c33fa",3,0]],"st":[["shooting-range",2],["workbench",2],["stash",3]],"sk":[],"tr":[]},{"l":3,"t":86400,"it":[["59e35de086f7741778269d84",1,1],["590a3cd386f77436f20848cb",15,0],["61bf7b6302b3924be92fa8c3",10,0],["5e2af29386f7746d4159f077",5,1],["5c06779c86f77426e00dd782",15,0],["590c35a486f774273531c822",5,0],["590c639286f774151567fa95",1,1],["5bc9b355d4351e6d1509862a",1,1]],"st":[["shooting-range",3],["workbench",3]],"sk":[],"tr":[]}]},{"k":"water-collector","n":"Water Collector","lv":[{"l":1,"t":0,"it":[["59e35cbb86f7741778269d83",4,0],["57347c5b245977448d35f6e1",5,0],["57347c77245977448d35f6e2",5,0],["57347c1124597737fb1379e3",3,0]],"st":[],"sk":[],"tr":[]},{"l":2,"t":7200,"it":[["59e35cbb86f7741778269d83",6,0],["5d1b2fa286f77425227d1674",2,0],["590c2e1186f77425357b6124",2,0],["5e2af29386f7746d4159f077",5,0]],"st":[["workbench",1]],"sk":[["Attention",3]],"tr":[]},{"l":3,"t":57600,"it":[["5449016a4bdc2d6f028b456f",20000,0],["5af04b6486f774195a3ebb49",2,1],["590c35a486f774273531c822",10,0],["60391afc25aff57af81f7085",1,1]],"st":[["generator",3],["heating",2]],"sk":[],"tr":[]}]}],"items":{"5449016a4bdc2d6f028b456f":{"n":"Roubles","s":"RUB","p":0,"b":1,"w":1,"h":1,"x":0,"u":"https://escapefromtarkov.fandom.com/wiki/Roubles"},"573478bc24597738002c6175":{"n":"Horse figurine","s":"Horse","p":11446,"b":11448,"w":1,"h":2,"x":1,"u":"https://escapefromtarkov.fandom.com/wiki/Horse_figurine"},"573474f924597738002c6174":{"n":"Chainlet","s":"Chainlet","p":5367,"b":7235,"w":1,"h":1,"x":1,"u":"https://escapefromtarkov.fandom.com/wiki/Chainlet"},"590c639286f774151567fa95":{"n":"Tech manual","s":"Manual","p":52269,"b":23900,"w":1,"h":2,"x":0,"u":"https://escapefromtarkov.fandom.com/wiki/Tech_manual"},"590c645c86f77412b01304d9":{"n":"Diary","s":"Diary","p":25795,"b":58000,"w":1,"h":2,"x":0,"u":"https://escapefromtarkov.fandom.com/wiki/Diary"},"590c651286f7741e566b6461":{"n":"Slim diary","s":"SDiary","p":36724,"b":71000,"w":1,"h":1,"x":0,"u":"https://escapefromtarkov.fandom.com/wiki/Slim_diary"},"62a09e73af34e73a266d932a":{"n":"BakeEzy cook book","s":"BakeEzy","p":30138,"b":58000,"w":1,"h":2,"x":0,"u":"https://escapefromtarkov.fandom.com/wiki/BakeEzy_cook_book"},"590c2e1186f77425357b6124":{"n":"Toolset","s":"Toolset","p":110082,"b":31000,"w":2,"h":2,"x":1,"u":"https://escapefromtarkov.fandom.com/wiki/Toolset"},"59e35de086f7741778269d84":{"n":"Electric drill","s":"Drill","p":155035,"b":32943,"w":2,"h":2,"x":0,"u":"https://escapefromtarkov.fandom.com/wiki/Electric_drill"},"5d40419286f774318526545f":{"n":"Metal cutting scissors","s":"MScissors","p":32457,"b":22300,"w":1,"h":2,"x":1,"u":"https://escapefromtarkov.fandom.com/wiki/Metal_cutting_scissors"},"57347c77245977448d35f6e2":{"n":"Screw nuts","s":"Nuts","p":22091,"b":8700,"w":1,"h":1,"x":1,"u":"https://escapefromtarkov.fandom.com/wiki/Screw_nuts"},"57347c5b245977448d35f6e1":{"n":"Bolts","s":"Bolts","p":55021,"b":11000,"w":1,"h":1,"x":1,"u":"https://escapefromtarkov.fandom.com/wiki/Bolts"},"590c5bbd86f774785762df04":{"n":"WD-40 (100ml)","s":"WD-40","p":35006,"b":6958,"w":1,"h":1,"x":1,"u":"https://escapefromtarkov.fandom.com/wiki/WD-40_(100ml)"},"5734795124597738002c6176":{"n":"Insulating tape","s":"Tape","p":34735,"b":2019,"w":1,"h":1,"x":1,"u":"https://escapefromtarkov.fandom.com/wiki/Insulating_tape"},"5d1b39a386f774252339976f":{"n":"Silicone tube","s":"Tube","p":44465,"b":18900,"w":1,"h":1,"x":1,"u":"https://escapefromtarkov.fandom.com/wiki/Silicone_tube"},"5d1b32c186f774252167a530":{"n":"Analog thermometer","s":"Therm.","p":23189,"b":45600,"w":1,"h":2,"x":1,"u":"https://escapefromtarkov.fandom.com/wiki/Analog_thermometer"},"5d1b327086f7742525194449":{"n":"Pressure gauge","s":"PGauge","p":35077,"b":61200,"w":2,"h":1,"x":1,"u":"https://escapefromtarkov.fandom.com/wiki/Pressure_gauge"},"59e35cbb86f7741778269d83":{"n":"Corrugated hose","s":"Hose","p":122223,"b":9523,"w":2,"h":1,"x":1,"u":"https://escapefromtarkov.fandom.com/wiki/Corrugated_hose"},"619cbfccbedcde2f5b3f7bdd":{"n":"Pipe grip wrench","s":"PGW","p":66985,"b":132000,"w":1,"h":2,"x":1,"u":"https://escapefromtarkov.fandom.com/wiki/Pipe_grip_wrench"},"5d1c774f86f7746d6620f8db":{"n":"Radiator helix","s":"Helix","p":105378,"b":14500,"w":1,"h":1,"x":0,"u":"https://escapefromtarkov.fandom.com/wiki/Radiator_helix"},"61bf7b6302b3924be92fa8c3":{"n":"Metal spare parts","s":"M.parts","p":81682,"b":5000,"w":1,"h":1,"x":1,"u":"https://escapefromtarkov.fandom.com/wiki/Metal_spare_parts"},"590c2c9c86f774245b1f03f2":{"n":"Construction measuring tape","s":"MTape","p":11444,"b":3769,"w":1,"h":1,"x":1,"u":"https://escapefromtarkov.fandom.com/wiki/Construction_measuring_tape"},"5c06779c86f77426e00dd782":{"n":"Bundle of wires","s":"Wires","p":48797,"b":7400,"w":1,"h":1,"x":0,"u":"https://escapefromtarkov.fandom.com/wiki/Bundle_of_wires"},"59e35ef086f7741777737012":{"n":"Pack of screws","s":"Screws","p":30863,"b":3140,"w":1,"h":1,"x":1,"u":"https://escapefromtarkov.fandom.com/wiki/Pack_of_screws"},"5e2af22086f7746d3f3c33fa":{"n":"Tube of Poxeram cold welding","s":"Poxeram","p":11590,"b":19400,"w":1,"h":1,"x":1,"u":"https://escapefromtarkov.fandom.com/wiki/Tube_of_Poxeram_cold_welding"},"5d1b2fa286f77425227d1674":{"n":"Electric motor","s":"Motor","p":166608,"b":43000,"w":2,"h":2,"x":0,"u":"https://escapefromtarkov.fandom.com/wiki/Electric_motor"},"590a3cd386f77436f20848cb":{"n":"Energy-saving lamp","s":"ES Lamp","p":68205,"b":10822,"w":1,"h":1,"x":0,"u":"https://escapefromtarkov.fandom.com/wiki/Energy-saving_lamp"},"5b4391a586f7745321235ab2":{"n":"WI-FI Camera","s":"Camera","p":128652,"b":35092,"w":1,"h":1,"x":0,"u":"https://escapefromtarkov.fandom.com/wiki/WI-FI_Camera"},"62a0a0bb621468534a797ad5":{"n":"Set of files \"Master\"","s":"Master","p":37145,"b":35000,"w":2,"h":2,"x":1,"u":"https://escapefromtarkov.fandom.com/wiki/Set_of_files_%22Master%22"},"590a3b0486f7743954552bdb":{"n":"Printed circuit board","s":"PCB","p":48870,"b":12749,"w":1,"h":1,"x":0,"u":"https://escapefromtarkov.fandom.com/wiki/Printed_circuit_board"},"5c06782b86f77426df5407d2":{"n":"Capacitors","s":"Caps","p":30974,"b":2500,"w":1,"h":1,"x":0,"u":"https://escapefromtarkov.fandom.com/wiki/Capacitors"},"5d1b313086f77425227d1678":{"n":"Phase control relay","s":"Relay","p":113166,"b":6473,"w":1,"h":1,"x":0,"u":"https://escapefromtarkov.fandom.com/wiki/Phase_control_relay"},"59e36c6f86f774176c10a2a7":{"n":"Power cord","s":"Cord","p":85922,"b":12623,"w":2,"h":1,"x":0,"u":"https://escapefromtarkov.fandom.com/wiki/Power_cord"},"544fb5454bdc2df8738b456a":{"n":"Leatherman Multitool","s":"MultiTool","p":32842,"b":15362,"w":1,"h":1,"x":0,"u":"https://escapefromtarkov.fandom.com/wiki/Leatherman_Multitool"},"59e3639286f7741777737013":{"n":"Bronze lion figurine","s":"Lion","p":93772,"b":162935,"w":3,"h":2,"x":1,"u":"https://escapefromtarkov.fandom.com/wiki/Bronze_lion_figurine"},"5d235a5986f77443f6329bc6":{"n":"Gold skull ring","s":"Skull","p":75992,"b":55000,"w":1,"h":1,"x":1,"u":"https://escapefromtarkov.fandom.com/wiki/Gold_skull_ring"},"5734758f24597738025ee253":{"n":"Golden neck chain","s":"GoldChain","p":43217,"b":38177,"w":1,"h":1,"x":1,"u":"https://escapefromtarkov.fandom.com/wiki/Golden_neck_chain"},"59faf7ca86f7740dbe19f6c2":{"n":"Roler Submariner gold wrist watch","s":"Roler","p":49268,"b":71049,"w":1,"h":1,"x":1,"u":"https://escapefromtarkov.fandom.com/wiki/Roler_Submariner_gold_wrist_watch"},"5d1b376e86f774252519444e":{"n":"Bottle of Fierce Hatchling moonshine","s":"Moonshine","p":395639,"b":200000,"w":1,"h":2,"x":1,"u":"https://escapefromtarkov.fandom.com/wiki/Bottle_of_Fierce_Hatchling_moonshine"},"5b7c710788a4506dec015957":{"n":"Lucky Scav Junk box","s":"Junk","p":0,"b":1215269,"w":4,"h":4,"x":0,"u":"https://escapefromtarkov.fandom.com/wiki/Lucky_Scav_Junk_box"},"5bc9bc53d4351e00367fbcee":{"n":"Golden rooster figurine","s":"Rooster","p":51760,"b":90566,"w":2,"h":2,"x":1,"u":"https://escapefromtarkov.fandom.com/wiki/Golden_rooster_figurine"},"5e2af37686f774755a234b65":{"n":"SurvL Survivor Lighter","s":"SurvL","p":16739,"b":16000,"w":1,"h":1,"x":1,"u":"https://escapefromtarkov.fandom.com/wiki/SurvL_Survivor_Lighter"},"62a09ee4cf4a99369e262453":{"n":"Can of white salt","s":"Salt","p":30557,"b":8000,"w":1,"h":1,"x":1,"u":"https://escapefromtarkov.fandom.com/wiki/Can_of_white_salt"},"5d1b392c86f77425243e98fe":{"n":"Light bulb","s":"Bulb","p":61187,"b":9500,"w":1,"h":1,"x":0,"u":"https://escapefromtarkov.fandom.com/wiki/Light_bulb"},"59e3596386f774176c10a2a2":{"n":"PAID AntiRoach spray","s":"PAID","p":24794,"b":5892,"w":1,"h":2,"x":1,"u":"https://escapefromtarkov.fandom.com/wiki/PAID_AntiRoach_spray"},"5e2af47786f7746d404f3aaa":{"n":"Fleece fabric","s":"Fleece","p":57987,"b":4000,"w":2,"h":1,"x":1,"u":"https://escapefromtarkov.fandom.com/wiki/Fleece_fabric"},"61bf83814088ec1a363d7097":{"n":"Sewing kit","s":"Krasavch.","p":53816,"b":38000,"w":1,"h":1,"x":1,"u":"https://escapefromtarkov.fandom.com/wiki/Sewing_kit"},"62a0a098de7ac8199358053b":{"n":"Awl","s":"Awl","p":31265,"b":15274,"w":1,"h":1,"x":1,"u":"https://escapefromtarkov.fandom.com/wiki/Awl"},"590c311186f77424d1667482":{"n":"Wrench","s":"Wrench","p":45618,"b":3544,"w":1,"h":1,"x":1,"u":"https://escapefromtarkov.fandom.com/wiki/Wrench"},"5e2af4d286f7746d4159f07a":{"n":"Aramid fiber fabric","s":"Aramid","p":46112,"b":8800,"w":2,"h":1,"x":1,"u":"https://escapefromtarkov.fandom.com/wiki/Aramid_fiber_fabric"},"590c31c586f774245e3141b2":{"n":"Pack of nails","s":"Nails","p":28596,"b":4105,"w":1,"h":1,"x":1,"u":"https://escapefromtarkov.fandom.com/wiki/Pack_of_nails"},"590c35a486f774273531c822":{"n":"Shustrilo sealing foam","s":"Shus","p":59719,"b":35502,"w":1,"h":3,"x":1,"u":"https://escapefromtarkov.fandom.com/wiki/Shustrilo_sealing_foam"},"57347c1124597737fb1379e3":{"n":"Duct tape","s":"Duct tape","p":20091,"b":2499,"w":1,"h":1,"x":1,"u":"https://escapefromtarkov.fandom.com/wiki/Duct_tape"},"60391afc25aff57af81f7085":{"n":"Ratchet wrench","s":"Ratchet","p":63335,"b":124000,"w":1,"h":2,"x":1,"u":"https://escapefromtarkov.fandom.com/wiki/Ratchet_wrench"},"5e2af29386f7746d4159f077":{"n":"KEKTAPE duct tape","s":"KEK","p":51539,"b":24000,"w":1,"h":1,"x":1,"u":"https://escapefromtarkov.fandom.com/wiki/KEKTAPE_duct_tape"},"5e2af41e86f774755a234b67":{"n":"Cordura polyamide fabric","s":"Cordura","p":25484,"b":13200,"w":2,"h":1,"x":1,"u":"https://escapefromtarkov.fandom.com/wiki/Cordura_polyamide_fabric"},"591094e086f7747caa7bb2ef":{"n":"Body armor repair kit","s":"Armor repair kit","p":921782,"b":200000,"w":3,"h":2,"x":0,"u":"https://escapefromtarkov.fandom.com/wiki/Body_armor_repair_kit"},"5734779624597737e04bf329":{"n":"CPU fan","s":"CPU fan","p":29198,"b":4670,"w":1,"h":1,"x":0,"u":"https://escapefromtarkov.fandom.com/wiki/CPU_fan"},"57347c2e24597744902c94a1":{"n":"Power supply unit","s":"PSU","p":49077,"b":7936,"w":2,"h":2,"x":0,"u":"https://escapefromtarkov.fandom.com/wiki/Power_supply_unit"},"5c05300686f7746dce784e5d":{"n":"VPX Flash Storage Module","s":"VPX","p":162775,"b":152400,"w":1,"h":1,"x":0,"u":"https://escapefromtarkov.fandom.com/wiki/VPX_Flash_Storage_Module"},"57347cd0245977445a2d6ff1":{"n":"T-Shaped plug","s":"T-Plug","p":31465,"b":2481,"w":1,"h":1,"x":0,"u":"https://escapefromtarkov.fandom.com/wiki/T-Shaped_plug"},"5d0378d486f77420421a5ff4":{"n":"Military power filter","s":"PFilter","p":58277,"b":55000,"w":1,"h":1,"x":0,"u":"https://escapefromtarkov.fandom.com/wiki/Military_power_filter"},"5d03794386f77420415576f5":{"n":"6-STEN-140-M military battery","s":"Tank battery","p":538763,"b":330000,"w":4,"h":2,"x":0,"u":"https://escapefromtarkov.fandom.com/wiki/6-STEN-140-M_military_battery"},"57347b8b24597737dd42e192":{"n":"Classic matches","s":"Matches","p":31285,"b":2020,"w":1,"h":1,"x":1,"u":"https://escapefromtarkov.fandom.com/wiki/Classic_matches"},"5e2af2bc86f7746d3f3c33fc":{"n":"Hunting matches","s":"HMatches","p":20172,"b":3800,"w":1,"h":1,"x":1,"u":"https://escapefromtarkov.fandom.com/wiki/Hunting_matches"},"590a373286f774287540368b":{"n":"Dry fuel","s":"DFuel","p":58147,"b":42175,"w":1,"h":1,"x":1,"u":"https://escapefromtarkov.fandom.com/wiki/Dry_fuel"},"56742c284bdc2d98058b456d":{"n":"Crickent lighter","s":"Crickent","p":39105,"b":1320,"w":1,"h":1,"x":1,"u":"https://escapefromtarkov.fandom.com/wiki/Crickent_lighter"},"619cbf476b8a1b37a54eebf8":{"n":"Military corrugated tube","s":"MTube","p":16771,"b":21263,"w":1,"h":1,"x":1,"u":"https://escapefromtarkov.fandom.com/wiki/Military_corrugated_tube"},"590a3c0a86f774385a33c450":{"n":"Spark plug","s":"SPlug","p":37569,"b":10989,"w":1,"h":1,"x":0,"u":"https://escapefromtarkov.fandom.com/wiki/Spark_plug"},"619cbfeb6b8a1b37a54eebfa":{"n":"Bulbex cable cutter","s":"Bulbex","p":54184,"b":105000,"w":1,"h":2,"x":1,"u":"https://escapefromtarkov.fandom.com/wiki/Bulbex_cable_cutter"},"5733279d245977289b77ec24":{"n":"Car battery","s":"Car battery","p":74055,"b":61563,"w":3,"h":2,"x":0,"u":"https://escapefromtarkov.fandom.com/wiki/Car_battery"},"5af04b6486f774195a3ebb49":{"n":"Pliers Elite","s":"Elite","p":55414,"b":29000,"w":1,"h":1,"x":1,"u":"https://escapefromtarkov.fandom.com/wiki/Pliers_Elite"},"60391b0fb847c71012789415":{"n":"TP-200 TNT brick","s":"TP-200","p":84316,"b":35000,"w":1,"h":1,"x":1,"u":"https://escapefromtarkov.fandom.com/wiki/TP-200_TNT_brick"},"5d1b304286f774253763a528":{"n":"Working LCD","s":"LCD","p":34581,"b":38000,"w":1,"h":2,"x":0,"u":"https://escapefromtarkov.fandom.com/wiki/Working_LCD"},"5d1b2ffd86f77425243e8d17":{"n":"NIXXOR lens","s":"NIXXOR","p":88629,"b":25300,"w":1,"h":1,"x":0,"u":"https://escapefromtarkov.fandom.com/wiki/NIXXOR_lens"},"590c392f86f77444754deb29":{"n":"SSD drive","s":"SSD","p":51940,"b":80000,"w":1,"h":1,"x":0,"u":"https://escapefromtarkov.fandom.com/wiki/SSD_drive"},"5c13cef886f774072e618e82":{"n":"Toilet paper","s":"TP","p":34737,"b":8800,"w":1,"h":1,"x":1,"u":"https://escapefromtarkov.fandom.com/wiki/Toilet_paper"},"57347c93245977448d35f6e3":{"n":"Toothpaste","s":"Toothpaste","p":62895,"b":1927,"w":1,"h":1,"x":0,"u":"https://escapefromtarkov.fandom.com/wiki/Toothpaste"},"5c13cd2486f774072c757944":{"n":"Soap","s":"Soap","p":20432,"b":3890,"w":1,"h":1,"x":1,"u":"https://escapefromtarkov.fandom.com/wiki/Soap"},"590c346786f77423e50ed342":{"n":"Xenomorph sealing foam","s":"Xeno","p":57343,"b":33778,"w":1,"h":3,"x":1,"u":"https://escapefromtarkov.fandom.com/wiki/Xenomorph_sealing_foam"},"5d1b317c86f7742523398392":{"n":"Hand drill","s":"Hand drill","p":42602,"b":60000,"w":3,"h":2,"x":1,"u":"https://escapefromtarkov.fandom.com/wiki/Hand_drill"},"569668774bdc2da2298b4568":{"n":"Euros","s":"EUR","p":0,"b":132,"w":1,"h":1,"x":0,"u":"https://escapefromtarkov.fandom.com/wiki/Euros"},"5d1b3f2d86f774253763b735":{"n":"Disposable syringe","s":"Syringe","p":40616,"b":8540,"w":1,"h":1,"x":0,"u":"https://escapefromtarkov.fandom.com/wiki/Disposable_syringe"},"5d1b3a5d86f774252167ba22":{"n":"Pile of meds","s":"Meds","p":36622,"b":6500,"w":1,"h":1,"x":1,"u":"https://escapefromtarkov.fandom.com/wiki/Pile_of_meds"},"544fb25a4bdc2dfb738b4567":{"n":"Aseptic bandage","s":"Bandage","p":2727,"b":1165,"w":1,"h":1,"x":1,"u":"https://escapefromtarkov.fandom.com/wiki/Aseptic_bandage"},"62a0a043cf4a99369e2624a5":{"n":"Bottle of OLOLO Multivitamins","s":"Vitamins","p":32588,"b":25090,"w":1,"h":1,"x":0,"u":"https://escapefromtarkov.fandom.com/wiki/Bottle_of_OLOLO_Multivitamins"},"5b4335ba86f7744d2837a264":{"n":"Medical bloodset","s":"Bloodset","p":42782,"b":9765,"w":1,"h":1,"x":1,"u":"https://escapefromtarkov.fandom.com/wiki/Medical_bloodset"},"59e3606886f77417674759a5":{"n":"Bottle of saline solution","s":"NaCl","p":92896,"b":8508,"w":1,"h":1,"x":1,"u":"https://escapefromtarkov.fandom.com/wiki/Bottle_of_saline_solution"},"5e831507ea0a7c419c2f9bd9":{"n":"Esmarch tourniquet","s":"Esmarch","p":5637,"b":1536,"w":1,"h":1,"x":1,"u":"https://escapefromtarkov.fandom.com/wiki/Esmarch_tourniquet"},"619cc01e0a7c3a1a2731940c":{"n":"Medical tools","s":"MedTools","p":93182,"b":7500,"w":1,"h":1,"x":0,"u":"https://escapefromtarkov.fandom.com/wiki/Medical_tools"},"5c0530ee86f774697952d952":{"n":"LEDX Skin Transilluminator","s":"LEDX","p":878647,"b":970000,"w":1,"h":1,"x":0,"u":"https://escapefromtarkov.fandom.com/wiki/LEDX_Skin_Transilluminator"},"5af0534a86f7743b6f354284":{"n":"Ophthalmoscope","s":"OScope","p":48676,"b":84912,"w":1,"h":1,"x":1,"u":"https://escapefromtarkov.fandom.com/wiki/Ophthalmoscope"},"59faf98186f774067b6be103":{"n":"Alkaline cleaner for heat exchangers","s":"Alkali","p":64959,"b":8457,"w":1,"h":2,"x":1,"u":"https://escapefromtarkov.fandom.com/wiki/Alkaline_cleaner_for_heat_exchangers"},"5af0484c86f7740f02001f7f":{"n":"Can of Majaica coffee beans","s":"Majaica","p":63642,"b":14977,"w":1,"h":1,"x":1,"u":"https://escapefromtarkov.fandom.com/wiki/Can_of_Majaica_coffee_beans"},"59e35abd86f7741778269d82":{"n":"Pack of sodium bicarbonate","s":"Sodium","p":48421,"b":6347,"w":1,"h":1,"x":1,"u":"https://escapefromtarkov.fandom.com/wiki/Pack_of_sodium_bicarbonate"},"5e2af00086f7746d3f3c33f7":{"n":"Smoked Chimney drain cleaner","s":"DCleaner","p":11361,"b":9457,"w":1,"h":2,"x":1,"u":"https://escapefromtarkov.fandom.com/wiki/Smoked_Chimney_drain_cleaner"},"5734781f24597737e04bf32a":{"n":"DVD drive","s":"DVD","p":41073,"b":8295,"w":2,"h":1,"x":0,"u":"https://escapefromtarkov.fandom.com/wiki/DVD_drive"},"590a391c86f774385a33c404":{"n":"Magnet","s":"Magnet","p":75071,"b":12713,"w":1,"h":1,"x":0,"u":"https://escapefromtarkov.fandom.com/wiki/Magnet"},"5e2aedd986f7746d404f3aa4":{"n":"GreenBat lithium battery","s":"GreenBat","p":314607,"b":26000,"w":1,"h":1,"x":1,"u":"https://escapefromtarkov.fandom.com/wiki/GreenBat_lithium_battery"},"5d1c819a86f774771b0acd6c":{"n":"Weapon parts","s":"WParts","p":32951,"b":14240,"w":2,"h":1,"x":1,"u":"https://escapefromtarkov.fandom.com/wiki/Weapon_parts"},"5bc9b355d4351e6d1509862a":{"n":"#FireKlean gun lube","s":"#FireKlean","p":20366,"b":36428,"w":1,"h":1,"x":1,"u":"https://escapefromtarkov.fandom.com/wiki/FireKlean_gun_lube"},"60391a8b3364dc22b04d0ce5":{"n":"Can of thermite","s":"Thermite","p":75508,"b":52000,"w":1,"h":1,"x":1,"u":"https://escapefromtarkov.fandom.com/wiki/Can_of_thermite"},"5c12613b86f7743bbe2c3f76":{"n":"Intelligence folder","s":"Intelligence","p":199022,"b":69000,"w":2,"h":1,"x":0,"u":"https://escapefromtarkov.fandom.com/wiki/Intelligence_folder"},"62a0a124de7ac81993580542":{"n":"Topographic survey maps","s":"Maps","p":57550,"b":72000,"w":2,"h":1,"x":0,"u":"https://escapefromtarkov.fandom.com/wiki/Topographic_survey_maps"},"574eb85c245977648157eec3":{"n":"Factory plan map","s":"Factory","p":83147,"b":16122,"w":1,"h":1,"x":1,"u":"https://escapefromtarkov.fandom.com/wiki/Factory_plan_map"},"590c621186f774138d11ea29":{"n":"Secure Flash drive","s":"Flash drive","p":22779,"b":40152,"w":1,"h":1,"x":0,"u":"https://escapefromtarkov.fandom.com/wiki/Secure_Flash_drive"},"590a386e86f77429692b27ab":{"n":"Damaged hard drive","s":"HDD","p":66352,"b":7491,"w":2,"h":1,"x":0,"u":"https://escapefromtarkov.fandom.com/wiki/Damaged_hard_drive"},"5c052f6886f7746b1e3db148":{"n":"Military COFDM Wireless Signal Transmitter","s":"SG-C10","p":82041,"b":145500,"w":2,"h":1,"x":0,"u":"https://escapefromtarkov.fandom.com/wiki/Military_COFDM_Wireless_Signal_Transmitter"},"62a0a16d0b9d3c46de5b6e97":{"n":"Military flash drive","s":"MFD","p":115104,"b":60000,"w":1,"h":1,"x":0,"u":"https://escapefromtarkov.fandom.com/wiki/Military_flash_drive"},"5d0375ff86f774186372f685":{"n":"Military cable","s":"MCable","p":145438,"b":41200,"w":2,"h":1,"x":0,"u":"https://escapefromtarkov.fandom.com/wiki/Military_cable"},"61bf7c024770ee6f9c6b8b53":{"n":"Secure magnetic tape cassette","s":"SMT","p":225967,"b":145000,"w":1,"h":1,"x":0,"u":"https://escapefromtarkov.fandom.com/wiki/Secure_magnetic_tape_cassette"},"6389c7f115805221fb410466":{"n":"Far-forward GPS Signal Amplifier Unit","s":"GPSA","p":0,"b":120000,"w":1,"h":1,"x":0,"u":"https://escapefromtarkov.fandom.com/wiki/Far-forward_GPS_Signal_Amplifier_Unit"},"5d1b31ce86f7742523398394":{"n":"Round pliers","s":"RPliers","p":18008,"b":27000,"w":1,"h":1,"x":1,"u":"https://escapefromtarkov.fandom.com/wiki/Round_pliers"},"59e3658a86f7741776641ac4":{"n":"Cat figurine","s":"Cat","p":30664,"b":62308,"w":1,"h":3,"x":1,"u":"https://escapefromtarkov.fandom.com/wiki/Cat_figurine"},"5696686a4bdc2da3298b456a":{"n":"Dollars","s":"USD","p":0,"b":122,"w":1,"h":1,"x":0,"u":"https://escapefromtarkov.fandom.com/wiki/Dollars"},"590c595c86f7747884343ad7":{"n":"Gas mask air filter","s":"Filter","p":98801,"b":10039,"w":2,"h":1,"x":1,"u":"https://escapefromtarkov.fandom.com/wiki/Gas_mask_air_filter"},"5d03775b86f774203e7e0c4b":{"n":"Phased array element","s":"AESA","p":103353,"b":166000,"w":2,"h":2,"x":0,"u":"https://escapefromtarkov.fandom.com/wiki/Phased_array_element"},"6389c85357baa773a825b356":{"n":"Advanced current converter","s":"MCC","p":0,"b":300000,"w":2,"h":2,"x":0,"u":"https://escapefromtarkov.fandom.com/wiki/Advanced_current_converter"},"63a0b208f444d32d6f03ea1e":{"n":"Fierce Blow sledgehammer","s":"Sledgehammer","p":96265,"b":132000,"w":2,"h":5,"x":0,"u":"https://escapefromtarkov.fandom.com/wiki/Fierce_Blow_sledgehammer"}},"traders":[{"n":"Prapor","lv":[[1,0,0],[2,6,0.7],[3,21,2.7],[4,36,7.9]],"tk":[{"id":"5936d90786f7742b1420ba5b","n":"Debut","pl":0,"r":0.1,"m":[],"g":[],"u":"https://escapefromtarkov.fandom.com/wiki/Debut","q":[]},{"id":"5936da9e86f7742d65037edf","n":"Background Check","pl":0,"r":0.1,"m":["Customs"],"g":[],"u":"https://escapefromtarkov.fandom.com/wiki/Background_Check","q":[]},{"id":"59674cd986f7744ab26e32f2","n":"Shootout Picnic","pl":0,"r":0.1,"m":[],"g":[],"u":"https://escapefromtarkov.fandom.com/wiki/Shootout_Picnic","q":[]},{"id":"59674eb386f774539f14813a","n":"Delivery From the Past","pl":0,"r":0.25,"m":["Customs","Factory","Night Factory"],"g":[],"u":"https://escapefromtarkov.fandom.com/wiki/Delivery_From_the_Past","q":[]},{"id":"5967530a86f77462ba22226b","n":"Bad Rep Evidence","pl":0,"r":0.1,"m":["Customs","Factory","Night Factory"],"g":[],"u":"https://escapefromtarkov.fandom.com/wiki/Bad_Rep_Evidence","q":[]},{"id":"59675ea386f77414b32bded2","n":"Postman Pat - Part 1","pl":0,"r":0.25,"m":["Factory","Night Factory"],"g":[],"u":"https://escapefromtarkov.fandom.com/wiki/Postman_Pat_-_Part_1","q":[]},{"id":"5967725e86f774601a446662","n":"Shaking Up the Teller","pl":0,"r":0.1,"m":["Customs"],"g":[],"u":"https://escapefromtarkov.fandom.com/wiki/Shaking_Up_the_Teller","q":[]},{"id":"59c124d686f774189b3c843f","n":"Oil Run","pl":0,"r":0.1,"m":["Customs"],"g":[],"u":"https://escapefromtarkov.fandom.com/wiki/Oil_Run","q":[]},{"id":"59ca1a6286f774509a270942","n":"Ironclad Proof","pl":0,"r":0.75,"m":[],"g":[["RGD-5 hand grenade (or 8 alternatives)",10,1]],"u":"https://escapefromtarkov.fandom.com/wiki/Ironclad_Proof","q":[]},{"id":"5c0bd94186f7747a727f09b2","n":"The Tarkov Import","pl":0,"r":0.75,"m":["Lighthouse","Reserve"],"g":[],"u":"https://escapefromtarkov.fandom.com/wiki/The_Tarkov_Import","q":[]},{"id":"5eda19f0edce541157209cee","n":"Anesthesia","pl":0,"r":0.25,"m":["Shoreline"],"g":[],"u":"https://escapefromtarkov.fandom.com/wiki/Anesthesia","q":[]},{"id":"5fd9fad9c1ce6b1a3b486d00","n":"Search Mission","pl":0,"r":0.1,"m":["Woods"],"g":[],"u":"https://escapefromtarkov.fandom.com/wiki/Search_Mission","q":[]},{"id":"60896b7bfa70fc097863b8f5","n":"Documents","pl":0,"r":0.75,"m":["Reserve"],"g":[],"u":"https://escapefromtarkov.fandom.com/wiki/Documents","q":[]}]},{"n":"Therapist","lv":[[1,0,0],[2,5,0.6],[3,18,2.1],[4,37,5.8]],"tk":[{"id":"5967733e86f774602332fc84","n":"Shortage","pl":0,"r":0.1,"m":[],"g":[["Salewa first aid kit",3,1]],"u":"https://escapefromtarkov.fandom.com/wiki/Shortage","q":[]},{"id":"59689ee586f7740d1570bbd5","n":"Sanitary Standards","pl":0,"r":0.25,"m":["Factory"],"g":[["Gas analyzer",2,1]],"u":"https://escapefromtarkov.fandom.com/wiki/Sanitary_Standards","q":[]},{"id":"59689fbd86f7740d137ebfc4","n":"Operation Aquarius","pl":0,"r":0.1,"m":["Customs"],"g":[["Bottle of water (0.6L) (or 4 alternatives)",3,1]],"u":"https://escapefromtarkov.fandom.com/wiki/Operation_Aquarius","q":[]},{"id":"5968eb3186f7741dde183a4d","n":"Blood in the Water","pl":0,"r":0.1,"m":["Customs"],"g":[],"u":"https://escapefromtarkov.fandom.com/wiki/Blood_in_the_Water","q":[]},{"id":"5969f9e986f7741dde183a50","n":"Pharmacist","pl":0,"r":0.1,"m":["Customs"],"g":[],"u":"https://escapefromtarkov.fandom.com/wiki/Pharmacist","q":[]},{"id":"596a0e1686f7741ddf17dbee","n":"Supply Plans","pl":0,"r":0.1,"m":["Woods"],"g":[],"u":"https://escapefromtarkov.fandom.com/wiki/Supply_Plans","q":[]},{"id":"596a1e6c86f7741ddc2d3206","n":"General Wares","pl":0,"r":0.25,"m":[],"g":[["Can of beef stew (Small)",15,1]],"u":"https://escapefromtarkov.fandom.com/wiki/General_Wares","q":[]},{"id":"596a218586f77420d232807c","n":"Car Repair","pl":0,"r":0.75,"m":[],"g":[["Car battery",4,1],["Spark plug",8,1]],"u":"https://escapefromtarkov.fandom.com/wiki/Car_Repair","q":[]},{"id":"5edaba7c0c502106f869bc02","n":"Tarkov-Style Diplomacy","pl":0,"r":0.75,"m":["Shoreline"],"g":[],"u":"https://escapefromtarkov.fandom.com/wiki/Tarkov-Style_Diplomacy","q":[]}]},{"n":"Skier","lv":[[1,1,0],[2,7,0.6],[3,22,2.1],[4,38,5.8]],"tk":[{"id":"596b36c586f77450d6045ad2","n":"Supplier","pl":0,"r":0.1,"m":[],"g":[["BNTI Module-3M body armor",1,0],["TOZ-106 20ga bolt-action shotgun",1,0]],"u":"https://escapefromtarkov.fandom.com/wiki/Supplier","q":[]},{"id":"596b43fb86f77457ca186186","n":"The Extortionist","pl":0,"r":0.1,"m":["Customs"],"g":[],"u":"https://escapefromtarkov.fandom.com/wiki/The_Extortionist","q":[]},{"id":"596b455186f77457cb50eccb","n":"Stirrup","pl":0,"r":0.25,"m":["Factory","Night Factory"],"g":[],"u":"https://escapefromtarkov.fandom.com/wiki/Stirrup","q":[]},{"id":"5979ed3886f77431307dc512","n":"What’s on the Flash Drive?","pl":0,"r":0.1,"m":[],"g":[["Secure Flash drive",2,1]],"u":"https://escapefromtarkov.fandom.com/wiki/What%E2%80%99s_on_the_Flash_Drive%3F","q":[]},{"id":"5979eee086f774311955e614","n":"Golden Swag","pl":0,"r":0.1,"m":["Customs"],"g":[],"u":"https://escapefromtarkov.fandom.com/wiki/Golden_Swag","q":[]},{"id":"5979f8bb86f7743ec214c7a6","n":"Polikhim Hobo","pl":0,"r":0.1,"m":[],"g":[],"u":"https://escapefromtarkov.fandom.com/wiki/Polikhim_Hobo","q":[]},{"id":"5a27c99a86f7747d2c6bdd8e","n":"Friend From the West","pl":0,"r":0.25,"m":[],"g":[],"u":"https://escapefromtarkov.fandom.com/wiki/Friend_From_the_West","q":[]},{"id":"5b478eca86f7744642012254","n":"Vitamins","pl":0,"r":0.25,"m":["Factory","Night Factory","Shoreline"],"g":[["Respirator",4,1],["Medical bloodset",3,1]],"u":"https://escapefromtarkov.fandom.com/wiki/Vitamins","q":[]},{"id":"5b478ff486f7744d184ecbbf","n":"Supplements","pl":0,"r":0.25,"m":["Customs"],"g":[["Respirator",4,1],["Medical bloodset",3,1]],"u":"https://escapefromtarkov.fandom.com/wiki/Supplements","q":[]},{"id":"5b47926a86f7747ccc057c15","n":"Informed Means Armed","pl":0,"r":0.1,"m":["Interchange","Woods"],"g":[],"u":"https://escapefromtarkov.fandom.com/wiki/Informed_Means_Armed","q":[]},{"id":"5c0d0f1886f77457b8210226","n":"From Hand to Hand","pl":0,"r":0.75,"m":["Lighthouse"],"g":[],"u":"https://escapefromtarkov.fandom.com/wiki/From_Hand_to_Hand","q":[]},{"id":"5c1234c286f77406fa13baeb","n":"Setup","pl":0,"r":0.25,"m":["Customs"],"g":[],"u":"https://escapefromtarkov.fandom.com/wiki/Setup","q":[]}]},{"n":"Peacekeeper","lv":[[1,1,0],[2,8,0.5],[3,19,2.2],[4,37,6]],"tk":[{"id":"5a0327ba86f77456b9154236","n":"Fuel Shortage","pl":0,"r":0.1,"m":[],"g":[["Printer paper (or 17 alternatives)",5,1],["TP-200 TNT brick (or 16 alternatives)",3,1]],"u":"https://escapefromtarkov.fandom.com/wiki/Fuel_Shortage","q":[]},{"id":"5a03296886f774569778596a","n":"I Need More Power","pl":0,"r":0.25,"m":["Shoreline"],"g":[["Metal fuel tank (or 1 alternatives)",3,1]],"u":"https://escapefromtarkov.fandom.com/wiki/I_Need_More_Power","q":[]},{"id":"5a0449d586f77474e66227b7","n":"Master Key","pl":0,"r":0.1,"m":["Shoreline"],"g":[],"u":"https://escapefromtarkov.fandom.com/wiki/Master_Key","q":[]},{"id":"5a27b7a786f774579c3eb376","n":"Tigr Safari","pl":0,"r":0.1,"m":["Customs"],"g":[],"u":"https://escapefromtarkov.fandom.com/wiki/Tigr_Safari","q":[]},{"id":"5a27b7d686f77460d847e6a6","n":"Scrap Metal","pl":0,"r":0.25,"m":["Shoreline"],"g":[],"u":"https://escapefromtarkov.fandom.com/wiki/Scrap_Metal","q":[]},{"id":"5a27b80086f774429a5d7e20","n":"Eagle Eye","pl":0,"r":0.25,"m":["Shoreline"],"g":[],"u":"https://escapefromtarkov.fandom.com/wiki/Eagle_Eye","q":[]},{"id":"5a27b87686f77460de0252a8","n":"Humanitarian Supplies","pl":0,"r":0.25,"m":["Shoreline"],"g":[["MRE ration pack",5,0]],"u":"https://escapefromtarkov.fandom.com/wiki/Humanitarian_Supplies","q":[]},{"id":"5a27ba1c86f77461ea5a3c56","n":"Weapons Circulation","pl":0,"r":0.25,"m":["Shoreline","Woods"],"g":[],"u":"https://escapefromtarkov.fandom.com/wiki/Weapons_Circulation","q":[]},{"id":"5a27bafb86f7741c73584017","n":"Chemical Experiments","pl":0,"r":0.1,"m":["Customs"],"g":[],"u":"https://escapefromtarkov.fandom.com/wiki/Chemical_Experiments","q":[]},{"id":"5a27bb1e86f7741f27621b7e","n":"Cargo X","pl":0,"r":0.75,"m":["Shoreline"],"g":[],"u":"https://escapefromtarkov.fandom.com/wiki/Cargo_X","q":[]},{"id":"5b4794cb86f774598100d5d4","n":"Metal Birds","pl":0,"r":0.1,"m":["Woods"],"g":[],"u":"https://escapefromtarkov.fandom.com/wiki/Metal_Birds","q":[]}]},{"n":"Mechanic","lv":[[1,1,0],[2,12,0.6],[3,26,2.3],[4,40,7.6]],"tk":[{"id":"5ac23c6186f7741247042bad","n":"Gunsmith - MP-133","pl":0,"r":0.1,"m":[],"g":[],"u":"https://escapefromtarkov.fandom.com/wiki/Gunsmith_-_MP-133","q":[]},{"id":"5ac2426c86f774138762edfe","n":"Gunsmith - AKS-74U","pl":0,"r":0.1,"m":[],"g":[],"u":"https://escapefromtarkov.fandom.com/wiki/Gunsmith_-_AKS-74U","q":[]},{"id":"5ac2428686f77412450b42bf","n":"Gunsmith - HK MP5","pl":0,"r":0.1,"m":[],"g":[],"u":"https://escapefromtarkov.fandom.com/wiki/Gunsmith_-_HK_MP5","q":[]},{"id":"5ac345dc86f774288030817f","n":"Playing the Market","pl":0,"r":0.25,"m":["Factory","Night Factory"],"g":[],"u":"https://escapefromtarkov.fandom.com/wiki/Playing_the_Market","q":[]},{"id":"5ac3462b86f7741d6118b983","n":"Farming","pl":0,"r":0.1,"m":["Customs"],"g":[],"u":"https://escapefromtarkov.fandom.com/wiki/Farming","q":[]},{"id":"5ac3464c86f7741d651d6877","n":"Semiconductor Crisis","pl":0,"r":0.75,"m":[],"g":[["Graphics card",1,1],["CPU fan",8,1]],"u":"https://escapefromtarkov.fandom.com/wiki/Semiconductor_Crisis","q":[]},{"id":"5ac3467986f7741d6224abc2","n":"Ill-Wisher","pl":0,"r":0.25,"m":["Shoreline"],"g":[],"u":"https://escapefromtarkov.fandom.com/wiki/Ill-Wisher","q":[]},{"id":"5ac3475486f7741d6224abd3","n":"Bad Habit","pl":0,"r":0.1,"m":[],"g":[["Wilston cigarettes (or 2 alternatives)",15,1]],"u":"https://escapefromtarkov.fandom.com/wiki/Bad_Habit","q":[]},{"id":"5ac3477486f7741d651d6885","n":"Scout","pl":0,"r":0.25,"m":["Factory","Night Factory"],"g":[],"u":"https://escapefromtarkov.fandom.com/wiki/Scout","q":[]},{"id":"5ae3267986f7742a413592fe","n":"Gunsmith - Model 870","pl":0,"r":0.25,"m":[],"g":[],"u":"https://escapefromtarkov.fandom.com/wiki/Gunsmith_-_Model_870","q":[]},{"id":"5ae3277186f7745973054106","n":"Gunsmith - AKS-74N","pl":0,"r":0.75,"m":[],"g":[],"u":"https://escapefromtarkov.fandom.com/wiki/Gunsmith_-_AKS-74N","q":[]}]},{"n":"Ragman","lv":[[1,1,0],[2,12,0.5],[3,27,2],[4,42,6.5]],"tk":[{"id":"5ae448bf86f7744d733e55ee","n":"Make ULTRA Great Again","pl":0,"r":0.1,"m":["Interchange"],"g":[],"u":"https://escapefromtarkov.fandom.com/wiki/Make_ULTRA_Great_Again","q":[]},{"id":"5ae448e586f7744dcf0c2a67","n":"Big Sale","pl":0,"r":0.25,"m":["Interchange"],"g":[],"u":"https://escapefromtarkov.fandom.com/wiki/Big_Sale","q":[]},{"id":"5ae448f286f77448d73c0131","n":"Fuel Crisis","pl":0,"r":0.1,"m":["Interchange"],"g":[],"u":"https://escapefromtarkov.fandom.com/wiki/Fuel_Crisis","q":[]},{"id":"5ae4490786f7744ca822adcc","n":"Dressed to Kill","pl":0,"r":0.1,"m":[],"g":[["Kinda cowboy hat",2,1],["Ushanka ear flap hat (or 2 alternatives)",2,1]],"u":"https://escapefromtarkov.fandom.com/wiki/Dressed_to_Kill","q":[]},{"id":"5ae4493486f7744efa289417","n":"Inventory Files","pl":0,"r":0.1,"m":["Interchange"],"g":[],"u":"https://escapefromtarkov.fandom.com/wiki/Inventory_Files","q":[]},{"id":"5ae4493d86f7744b8e15aa8f","n":"A Big Loss","pl":0,"r":0.1,"m":["Interchange"],"g":[],"u":"https://escapefromtarkov.fandom.com/wiki/A_Big_Loss","q":[]},{"id":"5ae4498786f7744bde357695","n":"The Key to Success","pl":0,"r":0.25,"m":["Interchange"],"g":[],"u":"https://escapefromtarkov.fandom.com/wiki/The_Key_to_Success","q":[]},{"id":"5ae449b386f77446d8741719","n":"Gratitude","pl":0,"r":0.1,"m":["Woods"],"g":[],"u":"https://escapefromtarkov.fandom.com/wiki/Gratitude","q":[]},{"id":"5ae449c386f7744bde357697","n":"Pathfinder","pl":0,"r":0.1,"m":["Interchange"],"g":[],"u":"https://escapefromtarkov.fandom.com/wiki/Pathfinder","q":[]},{"id":"5ae449d986f774453a54a7e1","n":"Supervisor","pl":0,"r":0.25,"m":["Interchange"],"g":[],"u":"https://escapefromtarkov.fandom.com/wiki/Supervisor","q":[]},{"id":"5b47891f86f7744d1b23c571","n":"Living High is Not a Crime","pl":0,"r":0.75,"m":[],"g":[["Bronze lion figurine",2,1],["Horse figurine",2,1],["Golden rooster figurine",2,1],["Cat figurine",2,1],["Golden egg",2,1],["Roler Submariner gold wrist watch",2,1]],"u":"https://escapefromtarkov.fandom.com/wiki/Living_High_is_Not_a_Crime","q":[]},{"id":"5b478b1886f7744d1b23c57d","n":"Hot Delivery","pl":0,"r":0.25,"m":["Interchange"],"g":[],"u":"https://escapefromtarkov.fandom.com/wiki/Hot_Delivery","q":[]}]},{"n":"Jaeger","lv":[[1,1,0],[2,9,0.6],[3,17,2.1],[4,33,7.3]],"tk":[{"id":"5d24b81486f77439c92d6ba8","n":"Acquaintance","pl":0,"r":0.1,"m":[],"g":[["Iskra ration pack (or 23 alternatives)",10,0]],"u":"https://escapefromtarkov.fandom.com/wiki/Acquaintance","q":[]},{"id":"5d25e2b486f77409de05bba0","n":"The Huntsman Path - Secured Perimeter","pl":0,"r":0.75,"m":["Factory","Night Factory"],"g":[],"u":"https://escapefromtarkov.fandom.com/wiki/The_Huntsman_Path_-_Secured_Perimeter","q":[]},{"id":"5d25e2c386f77443e7549029","n":"The Huntsman Path - Trophy","pl":0,"r":0.1,"m":["Customs"],"g":[["Tokarev TT-33 7.62x25 TT pistol (Golden)",1,1]],"u":"https://escapefromtarkov.fandom.com/wiki/The_Huntsman_Path_-_Trophy","q":[]},{"id":"5d25e2cc86f77443e47ae019","n":"The Huntsman Path - Forest Cleaning","pl":0,"r":0.75,"m":[],"g":[],"u":"https://escapefromtarkov.fandom.com/wiki/The_Huntsman_Path_-_Forest_Cleaning","q":[]},{"id":"5d25e2e286f77444001e2e48","n":"The Huntsman Path - Sellout","pl":0,"r":0.25,"m":["Interchange"],"g":[["Maska-1SCh bulletproof helmet (Killa Edition) (or 1 alternatives)",1,1]],"u":"https://escapefromtarkov.fandom.com/wiki/The_Huntsman_Path_-_Sellout","q":[]},{"id":"5d25e2ee86f77443e35162ea","n":"The Huntsman Path - Woods Keeper","pl":0,"r":0.1,"m":["Woods"],"g":[["Shturman's stash key",1,1]],"u":"https://escapefromtarkov.fandom.com/wiki/The_Huntsman_Path_-_Woods_Keeper","q":[]},{"id":"5d25e43786f7740a212217fa","n":"The Huntsman Path - Justice","pl":0,"r":0.1,"m":["Customs"],"g":[["FORT Redut-M body armor (or 6 alternatives)",1,1]],"u":"https://escapefromtarkov.fandom.com/wiki/The_Huntsman_Path_-_Justice","q":[]},{"id":"5d25e44386f77409453bce7b","n":"The Huntsman Path - Angry Watchman","pl":0,"r":0.1,"m":["Customs"],"g":[],"u":"https://escapefromtarkov.fandom.com/wiki/The_Huntsman_Path_-_Angry_Watchman","q":[]},{"id":"5d25e44f86f77443e625e385","n":"The Huntsman Path - Eraser","pl":0,"r":0.75,"m":["Reserve"],"g":[["Altyn assault helmet (Olive Drab) (or 13 alternatives)",2,1]],"u":"https://escapefromtarkov.fandom.com/wiki/The_Huntsman_Path_-_Eraser","q":[]}]}],"fetched":"2026-11-14"};
+const CASH = {'5449016a4bdc2d6f028b456f':'₽','5696686a4bdc2da3298b456a':'$','569668774bdc2da2298b4568':'€'};
+const LATE = ['library','booze-generator','scav-case','bitcoin-farm','air-filtering-unit','solar-power'];
+function phase(k,l){
+  if(LATE.includes(k)) return 4;
+  if(k==='defective-wall') return l<=3?1:2;
+  if(k==='gym'||k==='cultist-circle') return 2;
+  if(k==='hall-of-fame'||k==='gear-rack') return l===1?2:4;
+  if(k==='weapon-rack') return l===1?3:4;
+  if(k==='shooting-range') return l===1?1:(l===2?3:4);
+  return Math.min(l,4);
+}
+// Recommended order. Prestige-gate stations (Intelligence Center 1, Nutrition Unit 2, Rest Space 2) come early.
+const PRI = ['vents:1','security:1','generator:1','medstation:1','water-collector:1','defective-wall:1','workbench:1','rest-space:1','nutrition-unit:1','intelligence-center:1','heating:1','illumination:1','lavatory:1','defective-wall:2','shooting-range:1','defective-wall:3',
+ 'rest-space:2','illumination:2','lavatory:2','nutrition-unit:2','medstation:2','workbench:2','generator:2','vents:2','security:2','heating:2','water-collector:2','intelligence-center:2','defective-wall:4','defective-wall:5','defective-wall:6','cultist-circle:1','gym:1','hall-of-fame:1','gear-rack:1',
+ 'illumination:3','workbench:3','rest-space:3','lavatory:3','medstation:3','nutrition-unit:3','vents:3','heating:3','security:3','generator:3','water-collector:3','weapon-rack:1','shooting-range:2','intelligence-center:3'];
+const PHASE_DESC = {1:'Phase 1 is every level 1 station plus the first three Defective Wall stages.',2:'Phase 2 adds every level 2 upgrade, the rest of the Defective Wall, Gym, Cultist Circle, Hall of Fame 1 and Gear Rack 1.',3:'Phase 3 adds every level 3 upgrade, Weapon Rack 1 and Shooting Range 2.',4:'Everything adds the late-game stations: Bitcoin Farm, Scav Case, Solar Power, Library, Air Filtering Unit, Booze Generator and the top rack and Hall of Fame levels.'};
+const XFER = [['59e3606886f77417674759a5',6,'Medstation 2'],['5b4335ba86f7744d2837a264',2,'Medstation 2'],['590c311186f77424d1667482',4,'Nutrition Unit 2'],['59faf98186f774067b6be103',2,'Nutrition Unit 2'],['60391b0fb847c71012789415',2,'Security 2'],['5af04b6486f774195a3ebb49',1,'Security 2'],['5e2aedd986f7746d404f3aa4',4,'Rest Space 3'],['5af0534a86f7743b6f354284',1,'Medstation 3']];
+
+const ST = Object.fromEntries(D.stations.map(s=>[s.k,s]));
+const LEVELS = [];
+D.stations.forEach(s=>s.lv.forEach(l=>LEVELS.push({k:s.k,n:s.n,l:l.l,d:l,id:s.k+':'+l.l,ph:phase(s.k,l.l)})));
+LEVELS.forEach(x=>{const i=PRI.indexOf(x.id); x.pri = i>=0?i:1000+x.ph*100+x.l;});
+LEVELS.sort((a,b)=>a.pri-b.pri);
+
+let S = {built:{stash:4},have:{},tasks:{},xfer:{},target:2,ts:0,sync:{since:'',mode:'pve'}};
+let syncMsg='', clearArm=false;
+let tab = 'build', filt = 'all';
+const $ = id=>document.getElementById(id);
+const esc = s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const fmt = n=>Math.round(n).toLocaleString('en-US');
+const dur = t=>{ if(!t) return 'instant'; const h=Math.round(t/3600); return h<24? h+'h build' : Math.floor(h/24)+'d '+(h%24?h%24+'h ':'')+'build'; };
+const built = k=>S.built[k]||0;
+const have = id=>S.have[id]||0;
+const inPlan = x=>x.ph<=S.target;
+const isBuilt = x=>built(x.k)>=x.l;
+const blockers = x=>{ const b=[]; if(built(x.k)<x.l-1) b.push(x.n+' '+(x.l-1)); x.d.st.forEach(([k,l])=>{ if(built(k)<l) b.push(ST[k].n+' '+l); }); return b; };
+const missing = x=>x.d.it.filter(([id,c])=>!CASH[id] && have(id)<c).length;
+
+function itemRow([id,c,fir]){
+  const it=D.items[id];
+  if(CASH[id]) return `<li><span class="nm">${esc(it.n)}</span><span class="num">${CASH[id]}${fmt(c)}</span></li>`;
+  const ok=have(id)>=c;
+  return `<li class="${ok?'done':''}"><span class="nm"><a href="${esc(it.u)}" target="_blank" rel="noopener">${esc(it.n)}</a>${fir?'<span class="tag fir" title="Must be found in raid">FIR</span>':''}</span>${stepper(id,c)}</li>`;
+}
+function stepper(id,need){
+  const n=esc(D.items[id].n);
+  return `<span class="step"><button data-item="${id}" data-d="-1" aria-label="One fewer ${n}">−</button><span class="num">${have(id)}/${need}</span><button data-item="${id}" data-d="1" aria-label="One more ${n}">+</button></span>`;
+}
+function card(x){
+  const m=missing(x), extra=[];
+  x.d.sk.forEach(([n,l])=>extra.push(`<li><span class="nm">${esc(n)} skill</span><span class="num">level ${l}</span></li>`));
+  x.d.tr.forEach(([n,l])=>extra.push(`<li><span class="nm">${esc(n)}<span class="tag gate">trader</span></span><span class="num">LL${l}</span></li>`));
+  const body = x.d.it.map(itemRow).join('')+extra.join('') || '<li><span class="nm muted">No items needed</span></li>';
+  return `<article class="card ${m?'':'go'}"><header><h3>${esc(x.n)}<span class="lvl">L${x.l}</span></h3><span class="time">${dur(x.d.t)}</span></header>
+  <ul class="reqs">${body}</ul>
+  <footer><span class="${m?'muted':'okc'}">${m? m+' item'+(m>1?'s':'')+' short' : 'Items ready'}</span><button class="btn" data-build="${x.id}">Mark built</button></footer></article>`;
+}
+function renderBuild(){
+  const plan=LEVELS.filter(inPlan), todo=plan.filter(x=>!isBuilt(x));
+  const ready=todo.filter(x=>!blockers(x).length), wait=todo.filter(x=>blockers(x).length);
+  let h=`<p class="muted">${PHASE_DESC[S.target]}</p>`;
+  h+=`<div class="group"><header><h2>Ready to build</h2><span class="muted">${ready.length} upgrade${ready.length===1?'':'s'}, in recommended order</span></header>`;
+  h+= ready.length? `<div class="cards">${ready.map(card).join('')}</div>` : `<div class="note"><p>Nothing left to build in this plan. Raise “Plan through” to see the next phase.</p></div>`;
+  h+='</div>';
+  if(wait.length){
+    h+=`<div class="group"><header><h2>Waiting on other stations</h2></header><div class="rows">`+wait.map(x=>`<div class="row"><span><b>${esc(x.n)}</b><span class="lvl">L${x.l}</span></span><span class="why">needs ${esc(blockers(x).join(', '))}</span></div>`).join('')+`</div></div>`;
+  }
+  const done=D.stations.filter(s=>built(s.k)>0).sort((a,b)=>a.n.localeCompare(b.n));
+  h+=`<div class="group"><header><h2>Built</h2><span class="muted">Stash is set to level 4 for Edge of Darkness. Undo levels if your edition starts lower.</span></header><div class="rows">`+
+    (done.map(s=>`<div class="row"><span><b>${esc(s.n)}</b><span class="lvl">L${built(s.k)} of ${s.lv.length}</span></span><button class="btn ghost" data-undo="${s.k}">Undo last level</button></div>`).join('')||'<div class="row muted">Nothing yet.</div>')+`</div></div>`;
+  $('v-build').innerHTML=h;
+}
+function needs(){
+  const m={};
+  LEVELS.filter(x=>inPlan(x)&&!isBuilt(x)).forEach(x=>x.d.it.forEach(([id,c,fir])=>{
+    const e=m[id]||(m[id]={id,need:0,fir:0,uses:[],pri:x.pri}); e.need+=c; if(fir) e.fir+=c; e.uses.push(x.n+' '+x.l);
+  }));
+  return Object.values(m);
+}
+function renderItems(){
+  const all=needs(), cash=all.filter(e=>CASH[e.id]), items=all.filter(e=>!CASH[e.id]);
+  let rows=items.slice().sort((a,b)=>a.pri-b.pri);
+  if(filt==='missing') rows=rows.filter(e=>have(e.id)<e.need);
+  if(filt==='fir') rows=rows.filter(e=>e.fir>0);
+  if(filt==='xfer') rows=rows.filter(e=>D.items[e.id].x);
+  const firShort=e=>Math.max(0,e.fir-have(e.id)), buyable=e=>Math.max(0,e.need-have(e.id))-firShort(e);
+  const buy=items.reduce((s,e)=>s+buyable(e)*D.items[e.id].p,0);
+  let h=`<div class="group"><header><h2>Shopping list</h2><span class="muted">Everything still needed for unbuilt upgrades in the current plan</span></header>
+  <div class="note"><p><b>Cash to set aside:</b> ${cash.length?cash.map(e=>`<span class="num">${CASH[e.id]}${fmt(e.need)}</span>`).join(' · '):'none'}. <b>Flea cost of the missing items you are allowed to buy:</b> <span class="num">₽${fmt(buy)}</span>.</p>
+  <p class="muted">FIR means that many must be found in raid, so they have to come from your own raids, scav runs or crafts. Everything else can be bought. The flea market opens at level 15.</p></div>
+  <div class="filters" id="filters">${[['all','All'],['missing','Still missing'],['fir','Found in raid'],['xfer','Fits the transfer grid']].map(([k,l])=>`<button class="chip" data-f="${k}" aria-pressed="${filt===k}">${l}</button>`).join('')}</div>
+  <div class="scroll"><table><thead><tr><th>Item</th><th>Used for</th><th class="r">Have / need</th><th class="r">Flea each</th><th class="r">Left to get</th></tr></thead><tbody>`;
+  h+= rows.map(e=>{ const it=D.items[e.id], short=Math.max(0,e.need-have(e.id));
+    return `<tr class="${short?'':'done'}"><td><a href="${esc(it.u)}" target="_blank" rel="noopener">${esc(it.n)}</a>${e.fir?`<span class="tag fir">FIR ×${e.fir}</span>`:''}${it.x?'<span class="tag x" title="Allowed in the Prestige 1 transfer grid">XFER</span>':''}</td>
+    <td><span class="uses">${esc(e.uses.join(', '))}</span></td><td class="r">${stepper(e.id,e.need)}</td><td class="r num">${it.p?'₽'+fmt(it.p):'—'}</td><td class="r num">${!short?'✓':[buyable(e)?(it.p?'₽'+fmt(buyable(e)*it.p):'no price'):'', firShort(e)?'find '+firShort(e):''].filter(Boolean).join(' + ')}</td></tr>`; }).join('') || '<tr><td colspan="5" class="muted">Nothing matches this filter.</td></tr>';
+  h+='</tbody></table></div></div>';
+  $('v-items').innerHTML=h;
+}
+function renderTraders(){
+  let h=syncPanel()+`<div class="note"><p><b>Loyalty levels now need only player level and reputation.</b> There is no money-spent requirement in the current data. Reputation comes almost entirely from tasks, so the fastest route is each trader's opening task chain.</p>
+  <p><b>Do the Tour story chapter first.</b> After a reset most traders and maps are locked, and each Tour step opens one. See Player tips for the order.</p>
+  <p class="muted">Three hideout upgrades are locked behind traders: Weapon Rack 1 needs Mechanic LL2; Heating 3 and Gear Rack 1 need Ragman LL2. The rep shown below counts only the tasks you tick here, so your in-game number can be higher.</p></div><div class="cards">`;
+  D.traders.forEach(t=>{
+    const rep=t.tk.reduce((s,k)=>s+(S.tasks[k.id]?k.r:0),0);
+    h+=`<article class="card trader"><header><h3>${esc(t.n)}</h3><span class="time">tracked rep ${rep.toFixed(2)}</span></header>
+    <div class="lls">${t.lv.slice(1).map(([l,pl,r])=>`<span class="${rep>=r?'hit':''}">LL${l}: level <b>${pl}</b>, rep <b>${r.toFixed(2)}</b></span>`).join('')}</div>
+    <ul class="tasks">${t.tk.map(k=>`<li><label><input type="checkbox" id="tk-${k.id}" data-task="${k.id}" ${S.tasks[k.id]?'checked':''}><span class="t">${esc(k.n)} <a href="${esc(k.u)}" target="_blank" rel="noopener" aria-label="${esc(k.n)} on the wiki">↗</a><span class="sub">${[k.m.length?esc(k.m.join(' / ')):'', k.q.length?'after '+esc(k.q.join(', ')):'', k.g.length?'hand in '+k.g.map(g=>g[1]+'× '+esc(g[0])+(g[2]?' (FIR)':'')).join(', '):''].filter(Boolean).join(' · ')}</span></span><span class="rep">+${k.r.toFixed(2)}</span></label></li>`).join('')}</ul></article>`;
+  });
+  $('v-traders').innerHTML=h+'</div>';
+}
+function renderPrestige(){
+  let cells=[], used=0;
+  const list=XFER.map(([id,c,why])=>{ const it=D.items[id]; const sz=it.w*it.h*c; used+=sz; for(let i=0;i<sz;i++) cells.push(it.s);
+    return `<li><label><input type="checkbox" id="xf-${id}" data-xfer="${id}" ${S.xfer[id]?'checked':''}><span class="t">${c}× ${esc(it.n)}<span class="sub">${esc(why)} · ${it.w}×${it.h} each · ${sz} cell${sz>1?'s':''}</span></span><span class="rep">₽${fmt(it.p*c)}</span></label></li>`; }).join('');
+  let grid=''; for(let i=0;i<24;i++) grid+=`<i class="${cells[i]?'f':''}">${esc(cells[i]||'')}</i>`;
+  $('v-prestige').innerHTML=`
+  <div class="cols">
+   <div class="panel"><h2>Before you press the button</h2>
+    <ul><li><b>PvE Prestige 1 needs</b> level 15 and ₽5,000,000. No task, hideout or skill requirement.</li>
+    <li>Fill the 8×3 transfer grid. It is the only inventory that survives.</li>
+    <li>Roubles, stash, trader levels, tasks and the whole hideout are wiped. Leftover money is worth nothing after the reset.</li></ul></div>
+   <div class="panel"><h2>What you keep</h2>
+    <ul><li>10% of your skill levels and weapon mastery in PvE, plus one Charisma level and 50 TarCoin.</li>
+    <li>Achievements, profile stats and the prestige level itself.</li>
+    <li>Your edition perks. An Edge of Darkness stash is already at level 4, so the stash upgrades (about ₽11M and €200k) are skipped.</li>
+    <li>The 10% matters for the hideout: Medstation 2 needs Health 2, Security 2 needs Endurance 2, and Intelligence Center 2 and Water Collector 2 need Attention 3.</li></ul></div>
+  </div>
+  <div class="group"><header><h2>Suggested transfer grid</h2><span class="muted">${used} of 24 cells</span></header>
+   <div class="cols"><div class="card"><ul class="tasks">${list}</ul></div>
+   <div class="panel"><div class="grid83" aria-hidden="true">${grid}</div>
+    <p>This fill covers the pricier transferable parts of Medstation 2, Security 2 and Nutrition Unit 2, plus the batteries for Rest Space 3. It leaves out cheap ones such as Esmarch tourniquets and WD-40. The aim is to skip the slowest finds before the flea market opens at level 15.</p>
+    <p class="muted">The grid only accepts building materials, tools, fuel, food, meds, maps and a set list of valuables. Keys, electronics (drills, motors, relays, wires) and weapons are not allowed. Tick “Fits the transfer grid” on the shopping list to see every eligible hideout item if you want a different mix.</p>
+    <p class="muted">Not verified: whether transferred items keep found-in-raid status. Only the Ophthalmoscope in this list is needed as FIR. Swap it for a Sewing kit if you would rather not gamble a slot.</p></div></div></div>
+  <div class="cols">
+   <div class="panel"><h2>The first week back</h2>
+    <ul><li>Day one: buy every Phase 1 upgrade you can with cash. Most cost under ₽100k and build instantly.</li>
+    <li>Get Medstation 1 and Water Collector 1 up first so Defective Wall 1 can start. Wall levels 2 and 3 are 12h and 24h timers with no item cost, and the Gym, Hall of Fame and Gear Rack all sit behind level 6.</li>
+    <li>Prestige 2 in PvE needs level 25, ₽10,000,000, the task New Beginning and the Tour chapter, Strength 10, Endurance 10, Charisma 7, and Intelligence Center 1, Nutrition Unit 2 and Rest Space 2. Those three stations are front of the queue here.</li>
+    <li>Start long timers before you log off on weeknights: Medstation 3 (12h), Workbench 3 (11h), Vents 3 (10h), Nutrition Unit 3 (14h), Generator 3 and Water Collector 3 (16h), Security 3 (17h).</li></ul></div>
+   <div class="panel"><h2>Gathering</h2>
+    <ul><li>Run your scav every cooldown. Everything a scav extracts with counts as found in raid, which is what the FIR-tagged requirements need.</li>
+    <li>Do not sell hardware early. Bolts, screw nuts, wires, hoses, relays, motors, light bulbs and tape are needed in bulk across Phases 2 and 3.</li>
+    <li>Until level 15 you have no flea market, so non-FIR items come from raids, trader stock and barters. After 15, buy the non-FIR remainder outright and save raid time for the FIR ones.</li>
+    <li>Each item name links to its wiki page, which lists spawn locations, trader barters and crafts.</li></ul></div>
+  </div>`;
+}
+
+function renderTips(){
+  const road=[['1','15','₽5M','—','—','—','10%','8×3'],
+   ['2','25','₽10M','10 / 10 / 7','Intelligence Center 1, Nutrition Unit 2, Rest Space 2','New Beginning, Tour','20%','8×4'],
+   ['3','35','₽15M','10 / 10 / 7','Same as Prestige 2','New Beginning, Tour, Falling Skies','30%','8×5'],
+   ['4','40','₽15M','15 / 15 / 12','Same as Prestige 2','New Beginning, Tour, obtain the Ticket from Tarkov','40%','8×6'],
+   ['5','47','₽20M','20 / 20 / 20','Intelligence Center 2, Security 3, Rest Space 3','New Beginning, Collector, Tour, They Are Already Here, obtain the Ticket','50%','8×7'],
+   ['6','47','₽20M','20 / 20 / 20','Same as Prestige 5','New Beginning, Collector, complete The Ticket','50%','8×8']];
+  const A='<a target="_blank" rel="noopener" href="';
+  $('v-tips').innerHTML=`
+  <div class="note"><p><b>What this tab is.</b> Advice collected from player guides written after the 1.0 release, kept apart from the data-driven tabs. Numbers on the other tabs come from game data; technique tips here are player-reported unless marked otherwise.</p></div>
+  <div class="group"><header><h2>PvE prestige roadmap</h2><span class="muted">Strength / Endurance / Charisma in the skills column</span></header>
+   <div class="scroll"><table><thead><tr><th>Prestige</th><th>Level</th><th>Roubles</th><th>Skills</th><th>Hideout</th><th>Tasks and story</th><th>Skills kept</th><th>Grid</th></tr></thead><tbody>
+   ${road.map(r=>`<tr>${r.map((c,i)=>`<td class="${(i>0&&i<4)||i>5?'num':''}">${c}</td>`).join('')}</tr>`).join('')}</tbody></table></div>
+   <p class="tipsrc">Level, roubles, skills and hideout are from PvE game data. Tasks and story chapters are from the wiki. The Prestige 2 row matches what your in-game Prestige screen shows. “Skills kept” is the share of skills and weapon mastery carried into the next run.</p></div>
+  <div class="cols">
+   <div class="panel"><h2>Task order after the reset</h2>
+    <ul><li><b>Push Tour first.</b> Each step opens a trader or a map: Therapist hand-in (₽250,000) opens Streets, then Interchange opens Skier and Customs, Customs opens Mechanic and Factory, Factory opens Prapor and Woods, Woods opens Peacekeeper and Shoreline.</li>
+    <li><b>Later Tour steps:</b> five PMC dogtags to Prapor opens Reserve, $20,000 to Mechanic opens Lighthouse, and the last step is a Labs visit. Tour is also required for Prestige 2 onward.</li>
+    <li><b>Tour stalls on found-in-raid items:</b> five construction materials or tools, two weapons and five PMC dogtags. Keep them from your first raids.</li>
+    <li><b>Two unlock tasks:</b> Mechanic’s Introduction (Woods) opens Jaeger. Skier’s Friend From the West (five PMC kills) opens Peacekeeper’s tasks.</li>
+    <li><b>Plan raids by map, not by task.</b> Customs and Woods carry most early Prapor, Therapist and Skier tasks alongside the Tour steps.</li>
+    <li><b>Stockpile early hand-ins:</b> Salewa kits, disposable syringes and gas analyzers, all found in raid.</li>
+    <li><b>Trader priority:</b> Prapor and Therapist, then Skier and Mechanic, then the rest. Finish whichever trader is one or two tasks from the next loyalty level.</li></ul>
+    <p class="tipsrc">Source: ${A}https://escapefromtarkov.party/en/guides/early-quest-order/">Tarkov Field Guide, early quest order</a> (patch 1.1.5) and ${A}https://timesaver.gg/blog/tarkov-best-quests-after-pve-prestige-reset">timesaver.gg</a>.</p></div>
+   <div class="panel"><h2>Found-in-raid rules</h2>
+    <ul><li>Loot only keeps found-in-raid status if you extract with Survived. A Run Through removes it: earn 200 XP or stay seven minutes before leaving.</li>
+    <li>Items bought on the flea market are never found in raid.</li>
+    <li>Hideout crafts and task rewards count as found in raid.</li>
+    <li>Items sent out with the BTR driver or carried through a map transit keep their status.</li></ul>
+    <p class="tipsrc">Source: Tarkov Field Guide (patch 1.1.5). Thresholds can change between patches.</p></div>
+  </div>
+  <div class="cols">
+   <div class="panel"><h2>Strength and Endurance</h2>
+    <ul><li><b>Hit the next tier’s skill gate before you reset.</b> Part of every skill carries over, so levels gained before the reset are not all lost.</li>
+    <li>Endurance only trains while you move under the overweight limit. Strength only trains while you are over it.</li>
+    <li>Gains in one raid fall sharply after about five skill points. Several short raids beat one long one.</li>
+    <li>Start each raid with one long sprint while light for Endurance. For Strength, sprint overweight, then drop the weight.</li>
+    <li><b>Gym:</b> two sessions a day is the useful limit. The second gives half gains and a third gives none.</li>
+    <li>Players report you can train in a friend’s Gym from their profile before yours is rebuilt.</li>
+    <li><b>Defective Wall levels 2 to 5 each cost 3% Physical skill gain</b> until level 6 is done, so do not leave the wall half built.</li>
+    <li><b>Air Filtering Unit gives +40% Physical skill gain</b> while a filter is inserted. It needs Generator 3 and Vents 3; move it up your list once the level 3s are done.</li></ul>
+    <p class="tipsrc">Source: ${A}https://timesaver.gg/blog/tarkov-prestige-guide">timesaver.gg prestige guide</a>, checked by its authors against the wiki on 5 Nov 2026. Sprint routines are player-reported.</p></div>
+   <div class="panel"><h2>Charisma</h2>
+    <ul><li>Every prestige level grants +1 Charisma.</li>
+    <li>Scav Case: 0.4 points each time you send it out. Run it on every cooldown.</li>
+    <li>Trader repairs: 0.4 points per ₽10,000. Insurance: 0.4 points per ₽200,000.</li>
+    <li>Looting and examining items feeds it passively through Attention and Perception.</li>
+    <li>Skier’s A Life Lesson (BEAR) or Never Too Late To Learn (USEC) gives +1 Strength and +1 Endurance each run. Special Order, Antique Enthusiast and Regulated Materials give Charisma.</li></ul>
+    <p class="tipsrc">Source: timesaver.gg prestige guide, citing the wiki.</p></div>
+  </div>
+  <div class="cols">
+   <div class="panel"><h2>New Beginning (Prestige 2)</h2>
+    <ul><li>Eliminate 10 PMC operatives.</li><li>Survive and extract from The Lab.</li>
+    <li>Hand over two found-in-raid figurines of each kind: PMC, Scav, Boss and Trader.</li>
+    <li>Keep every figurine you find from now on. Later tiers ask for three of each.</li></ul>
+    <p class="tipsrc">Objectives are from the wiki and the PvP game data. The PvE data pull did not include this task, so read the in-game task text before relying on the counts.</p></div>
+   <div class="panel"><h2>Where the valuables spawn</h2>
+    <ul><li>For the found-in-raid valuables the late hideout needs (gold chains, skull rings, Roler watches, figurines, tech manuals), <b>Streets of Tarkov</b> and <b>Lighthouse</b> have the most loose spawn points, well ahead of Shoreline, Woods and Interchange.</li>
+    <li>Ophthalmoscope spawn points are concentrated in The Lab and The Labyrinth.</li>
+    <li>For general money and electronics, guides rank the Interchange store circuit first: OLI, Techlight, Rasmussen, then Goshan for food.</li></ul>
+    <p class="tipsrc">Spawn counts are from tarkov.dev map data, which lists valuables only. It has no spawn data for bolts, wires and other hardware, and I found no reliable player route for those. Store circuit: ${A}https://timesaver.gg/blog/tarkov-best-loot-runs">timesaver.gg loot runs</a>.</p></div>
+  </div>
+  <div class="note"><p class="muted"><b>About the sources.</b> Several of these guides are published by sites that sell boosting services, and guides disagree on hideout order after the Generator. For that reason the Build order tab still follows the game’s own requirements, not any one guide.</p></div>`;
+}
+
+/* ---- sync completed tasks from the game's own log files (read locally, never uploaded) ---- */
+async function scanLogs(files, opts){
+  const sess={};
+  for(const f of files){
+    const parts=String(f.webkitRelativePath||f.name).split('/');
+    const dir=parts.find(x=>/^log_\d{4}\.\d{2}\.\d{2}_/.test(x)); if(!dir) continue;
+    const s=sess[dir]||(sess[dir]={push:[],back:[]});
+    if(/push-notifications_\d+\.log$/.test(f.name)) s.push.push(f);
+    else if(/backend_\d+\.log$/.test(f.name)) s.back.push(f);
+  }
+  const since=opts.since? new Date(opts.since+'T00:00:00').getTime()/1000 : 0;
+  const out={done:{},sessions:0,otherMode:0,unknown:0,folders:Object.keys(sess).length};
+  const re=/\{\s*"type":\s*"new_message"[\s\S]*?\n\}/g;
+  for(const dir of Object.keys(sess)){
+    const s=sess[dir]; if(!s.push.length) continue;
+    const m=dir.match(/^log_(\d{4})\.(\d{2})\.(\d{2})_/);
+    // a session folder is named for the day it started; skip ones that ended well before the cutoff
+    if(since && new Date(+m[1],+m[2]-1,+m[3]).getTime()/1000 < since-2*86400) continue;
+    let pve=0,pvp=0;
+    for(const b of s.back){ const txt=await b.text(); pve+=(txt.match(/gw-pve\./g)||[]).length; pvp+=(txt.match(/gw-pvp\./g)||[]).length; }
+    if(!pve&&!pvp){ out.unknown++; continue; }
+    if((pve>=pvp?'pve':'pvp')!==opts.mode){ out.otherMode++; continue; }
+    out.sessions++;
+    for(const f of s.push){
+      const txt=await f.text();
+      for(const hit of txt.matchAll(re)){
+        let o; try{ o=JSON.parse(hit[0]); }catch(e){ continue; }
+        const g=o.message||{};
+        if(g.type===12 && (g.dt||0)>=since){ const id=String(g.templateId||'').slice(0,24); if(/^[0-9a-f]{24}$/.test(id)) out.done[id]=g.dt; }
+      }
+    }
+  }
+  return out;
+}
+function syncPanel(){
+  const s=S.sync;
+  return `<div class="panel"><h2>Sync completed tasks from your game logs</h2>
+  <p>Pick the <b>Logs</b> folder inside your Escape from Tarkov install folder. This page reads the log files in your browser and ticks off the tasks the game recorded as completed. Nothing is uploaded.</p>
+  <div class="sync">
+   <label for="sync-mode">Game mode<select id="sync-mode"><option value="pve"${s.mode==='pve'?' selected':''}>PvE</option><option value="pvp"${s.mode==='pvp'?' selected':''}>PvP</option></select></label>
+   <label for="sync-since">Only count tasks completed since<input type="date" id="sync-since" value="${esc(s.since||'')}"></label>
+   <button class="btn" data-pick="1">Choose Logs folder</button>
+   ${clearArm? `<button class="btn" data-clear="yes">Yes, clear every tick</button><button class="btn ghost" data-clear="no">Cancel</button>` : `<button class="btn ghost" data-clear="arm">Clear all task ticks</button>`}
+   <input type="file" id="sync-file" webkitdirectory multiple hidden>
+  </div>
+  <p class="muted" role="status">${esc(syncMsg|| (s.last? 'Last sync: '+s.last : 'Set the date to the day you prestiged so earlier completions are ignored. Leave it empty to count everything in the logs.'))}</p>
+  <p class="tipsrc"><b>Where the Logs folder usually is:</b> with the Battlestate launcher, <span class="num">C:\\Battlestate Games\\Escape from Tarkov\\Logs</span>; with Steam, <span class="num">…\\steamapps\\common\\Escape from Tarkov\\build\\Logs</span>. If you installed somewhere else, open the launcher settings to see the game folder, or right-click the game in Steam and choose Manage, Browse local files. The right folder contains subfolders whose names start with <span class="num">log_</span> and a date.</p>
+  <p class="tipsrc"><b>Ticked the wrong tasks?</b> “Clear all task ticks” unticks every task on this tab, including ones you ticked by hand. Fix the date, then sync again. Hideout progress is not affected.</p>
+  <p class="tipsrc">Tasks only. The logs do not record hideout upgrades, items, skills or trader reputation. A session that mixed both game modes is counted under the mode it used most. Your browser may ask you to confirm reading the folder.</p></div>`;
+}
+async function runSync(files){
+  if(!files.length){ return; }
+  syncMsg='Reading logs…'; render();
+  try{
+    const r=await scanLogs(files,{since:S.sync.since,mode:S.sync.mode});
+    const ids=Object.keys(r.done);
+    if(!r.folders){ syncMsg='No game log folders found there. Pick the folder named Logs inside the game install folder.'; render(); return; }
+    const listed={}; D.traders.forEach(t=>t.tk.forEach(k=>{ listed[k.id]=1; }));
+    let fresh=0; ids.forEach(id=>{ if(!S.tasks[id]){ S.tasks[id]=true; if(listed[id]) fresh++; } });
+    const onList=ids.filter(id=>listed[id]).length;
+    const pl=(n,w)=>n+' '+w+(n===1?'':'s'), M=S.sync.mode==='pvp'?'PvP':'PvE';
+    S.sync.last=new Date().toLocaleString()+' · '+pl(ids.length,'completed task')+' in '+pl(r.sessions,M+' session')+' · '+onList+' on these lists';
+    syncMsg='Found '+pl(ids.length,'completed task')+' in '+pl(r.sessions,M+' session')+'. '+onList+' on the lists below, '+fresh+' newly ticked.'+(r.otherMode?' Skipped '+pl(r.otherMode,'session')+' from the other mode.':'')+(r.unknown?' Skipped '+pl(r.unknown,'session')+' with no mode marker.':'');
+    changed(); render();
+  }catch(e){ syncMsg='Could not read those files. Try again and pick the Logs folder.'; render(); }
+}
+function renderStats(){
+  const plan=LEVELS.filter(x=>inPlan(x)&&x.k!=='stash'), b=plan.filter(isBuilt).length;
+  const items=needs().filter(e=>!CASH[e.id]);
+  const short=items.reduce((s,e)=>s+Math.max(0,e.need-have(e.id)),0), firShort=items.reduce((s,e)=>s+Math.max(0,e.fir-have(e.id)),0);
+  const rub=needs().filter(e=>e.id==='5449016a4bdc2d6f028b456f').reduce((s,e)=>s+e.need,0);
+  const ready=LEVELS.filter(x=>inPlan(x)&&!isBuilt(x)&&!blockers(x).length).length;
+  $('stats').innerHTML=[[b+' / '+plan.length,'Upgrades built in plan'],[ready,'Ready to build'],[fmt(short),'Items still to collect'],[fmt(firShort),'Of those, found in raid'],['₽'+fmt(rub),'Roubles for upgrades']].map(([v,l])=>`<div class="stat"><b>${v}</b><span>${l}</span></div>`).join('');
+}
+function focusKey(a){
+  if(!a||a===document.body) return null;
+  const d=a.dataset||{}; let sel=null;
+  if(a.id) sel='#'+a.id;
+  else if(d.item) sel='[data-item="'+d.item+'"][data-d="'+d.d+'"]';
+  else if(d.undo) sel='[data-undo="'+d.undo+'"]';
+  else if(d.f) sel='[data-f="'+d.f+'"]';
+  else if(d.clear) sel='[data-clear]';
+  else if(d.pick) sel='[data-pick]';
+  if(!sel) return null;
+  return {sel, i:[...document.querySelectorAll(sel)].indexOf(a)};
+}
+function render(){
+  const fk=focusKey(document.activeElement);
+  renderStats();
+  ({build:renderBuild,items:renderItems,traders:renderTraders,prestige:renderPrestige,tips:renderTips})[tab]();
+  ['build','items','traders','prestige','tips'].forEach(t=>{ $('v-'+t).hidden = t!==tab; });
+  document.querySelectorAll('.tab').forEach(b=>b.setAttribute('aria-selected', b.dataset.tab===tab));
+  document.querySelectorAll('#target button').forEach(b=>b.setAttribute('aria-pressed', +b.dataset.t===S.target));
+  if(fk){ const els=document.querySelectorAll(fk.sel), el=els[fk.i]||els[0]; if(el&&document.activeElement!==el){ try{ el.focus({preventScroll:true}); }catch(e){} } }
+}
+
+/* ---- saving ---- */
+let ref=null, timer=null, saving=false, dirty=false, localOK=true, why='';
+const say=t=>{ $('save').textContent=t; };
+const clone=o=>JSON.parse(JSON.stringify(o));
+const localMsg=()=>localOK?'Saved in this browser only':'This browser is blocking saved progress';
+function saveLocal(){ try{ localStorage.setItem('hideout-rebuild', JSON.stringify(S)); localOK=true; }catch(e){ localOK=false; } }
+function changed(){ S.ts=Date.now(); saveLocal(); dirty=true; clearTimeout(timer); timer=setTimeout(flush,700); if(!ref) say(localMsg()+(why?' ('+why+')':'')); }
+async function flush(){
+  if(!ref||saving) return; saving=true;
+  while(dirty){ dirty=false; say('Saving…');
+    try{ await ref.set(clone(S)); say('Progress saved'); }
+    catch(e){ say((localOK?'Could not save online. Kept in this browser.':'Could not save progress')+' ('+((e&&(e.code||e.name))||'error')+')'); break; } }
+  saving=false;
+}
+function adopt(o){ if(o&&typeof o==='object'){ S={built:{stash:4},have:{},tasks:{},xfer:{},target:2,ts:0,...o}; ['built','have','tasks','xfer'].forEach(k=>{ if(!S[k]||typeof S[k]!=='object') S[k]={}; }); if(![1,2,3,4].includes(S.target)) S.target=2; if(!S.sync||typeof S.sync!=='object') S.sync={since:'',mode:'pve'}; S.sync.mode=S.sync.mode==='pvp'?'pvp':'pve'; if(typeof S.sync.since!=='string') S.sync.since=''; } }
+async function boot(){
+  try{ adopt(JSON.parse(localStorage.getItem('hideout-rebuild')||'null')); }catch(e){ localOK=false; }
+  const h=location.hash.slice(1); if(['build','items','traders','prestige','tips'].includes(h)) tab=h;
+  render();
+  const use=async n=>{ try{ return window.claude&&window.claude.use ? await window.claude.use(n) : null; }catch(e){ return null; } };
+  const hosted=!!(window.claude&&window.claude.use);
+  if(!hosted){ say(localMsg()); return; }
+  // Each step records where it got to, so a failure names its cause in the status line.
+  const code=e=>(e&&(e.code||e.name))||'error';
+  const within=(p,ms,what)=>Promise.race([p,new Promise((_,no)=>setTimeout(()=>no({code:what+' timed out'}),ms))]);
+  why='connecting to online save';
+  const db=await use('db');
+  if(!db){ why='online save is not available in this view'; say(localMsg()+' ('+why+')'); return; }
+  try{
+    const legacy=db.doc('tracker/state');
+    let r=legacy, snap=null, moved=false, note='';
+    // Preferred: a private document per signed-in person. Falls back to the shared document if that fails.
+    try{
+      const user=await use('user'); const uid=user?await within(user.id(),8000,'identity'):null;
+      if(uid){
+        const mine=db.doc('data/users/'+uid+'/state');
+        snap=await within(mine.get(),12000,'private store');
+        r=mine;
+        if(!snap.exists){ let owner=false; try{ owner=!!(await user.isOwner()); }catch(e){}
+          if(owner){ const old=await within(legacy.get(),12000,'shared store'); if(old.exists){ snap=old; moved=true; } } }
+      } else note='no identity, using shared store';
+    }catch(e){ note='private store failed: '+code(e)+', using shared store'; r=legacy; snap=null; }
+    if(!snap) snap=await within(legacy.get(),12000,'shared store');
+    const remote=snap.exists?snap.data():null;
+    ref=r; why='';
+    const tail=note?' ('+note+')':'';
+    if(remote && (remote.ts||0)>=(S.ts||0)){ adopt(clone(remote)); saveLocal(); render(); say('Progress loaded'+tail); if(moved){ dirty=true; flush(); } }
+    else if(S.ts){ dirty=true; flush(); } else say('Progress saves automatically'+tail);
+    try{ r.onSnapshot(s=>{ if(!s.exists||s.metadata.hasPendingWrites||dirty||saving) return; const o=s.data();
+      if((o.ts||0)>(S.ts||0)){ adopt(clone(o)); saveLocal(); render(); say('Progress updated from another window'); } }, ()=>{}); }catch(e){}
+  }catch(e){ why='online save failed: '+code(e); say(localMsg()+' ('+why+')'); }
+}
+document.addEventListener('click',e=>{
+  const b=e.target.closest('button'); if(!b) return;
+  const d=b.dataset;
+  if(d.clear){ if(d.clear==='yes'){ S.tasks={}; if(S.sync) delete S.sync.last; syncMsg='All task ticks cleared.'; clearArm=false; changed(); } else clearArm=d.clear==='arm'; render(); return; }
+  if(d.pick){ const i=$('sync-file'); if(i) i.click(); return; }
+  if(d.tab){ clearArm=false; tab=d.tab; try{ location.hash=tab; }catch(_){} render(); return; }
+  if(d.t){ S.target=+d.t; changed(); render(); return; }
+  if(d.f){ filt=d.f; render(); return; }
+  if(d.item){ S.have[d.item]=Math.max(0,have(d.item)+(+d.d)); changed(); render(); return; }
+  if(d.build){ const x=LEVELS.find(v=>v.id===d.build); S.built[x.k]=x.l; x.d.it.forEach(([id,c])=>{ if(!CASH[id]) S.have[id]=Math.max(0,have(id)-c); }); changed(); render(); return; }
+  if(d.undo){ S.built[d.undo]=Math.max(0,built(d.undo)-1); changed(); render(); return; }
+});
+document.addEventListener('change',e=>{
+  const d=e.target.dataset||{};
+  if(d.task){ S.tasks[d.task]=e.target.checked; changed(); render(); }
+  if(e.target.id==='sync-mode'){ S.sync.mode=e.target.value==='pvp'?'pvp':'pve'; changed(); return; }
+  if(e.target.id==='sync-since'){ S.sync.since=/^\d{4}-\d{2}-\d{2}$/.test(e.target.value)?e.target.value:''; changed(); return; }
+  if(e.target.id==='sync-file'){ const fl=[...e.target.files]; e.target.value=''; runSync(fl); return; }
+  if(d.xfer){ S.xfer[d.xfer]=e.target.checked; changed(); }
+});
+window.addEventListener('hashchange',()=>{ const h=location.hash.slice(1); if(['build','items','traders','prestige','tips'].includes(h)&&h!==tab){ tab=h; render(); } });
+try{ $('pulled').textContent=new Date(D.fetched+'T12:00:00').toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}); }catch(e){}
+boot();
+</script>
+
+</body>
+</html>
